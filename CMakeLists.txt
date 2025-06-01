@@ -7,7 +7,7 @@ set(CMAKE_SYSTEM_PROCESSOR cortex-m4)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/linker/stm32f303vc.ld)
+set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/stm32/stm32f303vc.ld)
 
 set(SOURCES
 #        src/tim6_timebase.c
@@ -15,7 +15,7 @@ set(SOURCES
         src/stm32/stm32_def.c
         src/stm32/system_stm32f3xx.c
         src/stm32/stm32f3xx_hal_timebase_tim.c
-        startup/startup_stm32f303xc.s
+        stm32/startup_stm32f303xc.s
 )
 
 SET(CUSTOM_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/../Arduino_Core_STM32-main/system")
