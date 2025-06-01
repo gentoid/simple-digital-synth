@@ -68,3 +68,15 @@ add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -O ihex ${PROJECT_NAME}.elf ${PROJECT_NAME}.hex
         COMMAND ${CMAKE_OBJCOPY} -O binary ${PROJECT_NAME}.elf ${PROJECT_NAME}.bin
 )
+
+set(OPENOCD_EXECUTABLE openocd)
+set(OPENOCD_CONFIG_FILE ${CMAKE_SOURCE_DIR}/stm32/open-ocd.cfg)
+set(FIRMWARE_ELF ${CMAKE_BINARY_DIR}/simple_digital_synth.elf)
+
+add_custom_target(
+        flash
+        COMMAND ${OPENOCD_EXECUTABLE} -f ${OPENOCD_CONFIG_FILE} -c "program ${FIRMWARE_ELF} verify reset exit"
+        DEPENDS ${FIRMWARE_ELF}
+        COMMENT "Flashing the firmware to STM32F3 Discovery using OpenOCD"
+        VERBATIM
+)
