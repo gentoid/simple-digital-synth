@@ -1,55 +1,57 @@
-#include "stm32f3xx_hal.h"
-#include <cstdint>
+#include "stm32f3xx.h"
 
-class LedRing {
-public:
-  static constexpr uint16_t leds_mask = 0xFF00; // PE8..PE15
+// Resolution of PWM (ARR = 180 → 0..180 steps)
+constexpr uint16_t PWM_RESOLUTION = 180;
 
-  void init() {
-    __HAL_RCC_GPIOE_CLK_ENABLE();
+volatile uint16_t saw_value = 0;
 
-    GPIOE->MODER &= ~(0xFFFF << (8 * 2));
-    GPIOE->MODER |=
-        (0x5555 << (8 * 2));
-  }
+extern "C" void TIM3_IRQHandler() {
+    if (TIM3->SR & TIM_SR_UIF) {
+        TIM3->SR &= ~TIM_SR_UIF;  // clear interrupt flag
 
-  void set(uint8_t pattern) {
-    GPIOE->BSRR = ((~pattern & 0xFF) << 24) | ((pattern & 0xFF) << 8);
-  }
-};
+        // Sawtooth: increment until max, then reset
+        saw_value += 1;
+        if (saw_value >= PWM_RESOLUTION)
+            saw_value = 0;
 
-void SystemClock_Config() {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {};
-
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  HAL_RCC_OscConfig(&RCC_OscInitStruct);
-
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-                              | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_ACR_LATENCY_0);
+        TIM2->CCR1 = saw_value;
+    }
 }
 
 int main() {
-  HAL_Init();
-  SystemClock_Config();
+    // === GPIOA: enable and configure PA5 to AF1 (TIM2_CH1) ===
+    RCC->AHBENR  |= RCC_AHBENR_GPIOAEN;
+    GPIOA->MODER &= ~(3U << (5 * 2));
+    GPIOA->MODER |=  (2U << (5 * 2));   // Alternate function
+    GPIOA->AFR[0] &= ~(0xF << (5 * 4));
+    GPIOA->AFR[0] |=  (1U << (5 * 4));  // AF1 = TIM2_CH1
 
-  LedRing leds;
-  leds.init();
+    // === TIM2: PWM output ===
+    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
 
-  uint8_t pattern = 0x01;
+    TIM2->PSC = 0;                    // No prescaler
+    TIM2->ARR = PWM_RESOLUTION;      // Top value
+    TIM2->CCR1 = 0;                  // Start with 0% duty
 
-  while (true) {
-    leds.set(pattern);
-    pattern = (pattern << 1) | (pattern >> 7);
+    TIM2->CCMR1 &= ~TIM_CCMR1_OC1M;
+    TIM2->CCMR1 |= (6 << TIM_CCMR1_OC1M_Pos);  // PWM mode 1
+    TIM2->CCMR1 |= TIM_CCMR1_OC1PE;            // preload enable
+    TIM2->CCER  |= TIM_CCER_CC1E;              // enable output
+    TIM2->CR1   |= TIM_CR1_ARPE;               // auto-reload preload enable
+    TIM2->EGR   |= TIM_EGR_UG;                 // update event
+    TIM2->CR1   |= TIM_CR1_CEN;                // enable timer
 
-    HAL_Delay(500);
-  }
+    // === TIM3: sample rate timer (44.1 kHz) ===
+    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+
+    TIM3->PSC = 0;
+    TIM3->ARR = 181 - 1;             // 8 MHz / 181 ≈ 44.2 kHz
+    TIM3->DIER |= TIM_DIER_UIE;     // Update interrupt enable
+    TIM3->CR1 |= TIM_CR1_CEN;       // Start timer
+
+    NVIC_EnableIRQ(TIM3_IRQn);      // Enable IRQ in NVIC
+
+    while (1) {
+        // Nothing to do — all handled in interrupt
+    }
 }
