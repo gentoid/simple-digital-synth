@@ -48,7 +48,7 @@ target_include_directories(${PROJECT_NAME}.elf PRIVATE
 target_compile_options(${PROJECT_NAME}.elf PRIVATE
         -mcpu=cortex-m4
         -mthumb
-        -Os
+        -g3 -Og
         -ffunction-sections
         -fdata-sections
         -Wall
