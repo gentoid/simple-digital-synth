@@ -36,31 +36,33 @@ SECTIONS
   } > FLASH
 
   /* Code + const data */
-  .text :
-  {
-    *(.text*)
-    *(.rodata*)
-    *(.glue_7)
-    *(.glue_7t)
-    *(.eh_frame)
-    _etext = .;
-  } > FLASH
+   .text :
+   {
+     *(.text*)
+     *(.rodata*)
+     *(.glue_7)
+     *(.glue_7t)
+     *(.eh_frame)
+   } > FLASH
 
   /* ARM exception unwinding (optional, avoids ld warnings) */
-  .ARM.exidx :
-  {
-    *(.ARM.exidx*)
-  } > FLASH
+   .ARM.exidx : ALIGN(4)
+   {
+     *(.ARM.exidx*)
+     *(.gnu.linkonce.armexidx.*)
+   } > FLASH
+
+   _etext = .;
 
   /* Initialized data: copied from FLASH to RAM */
-  .data : AT (_etext)
-  {
-    _sdata = .;
-    _sidata = LOADADDR(.data);
-    *(.data*)
-    *(.data.*)
-    _edata = .;
-  } > RAM
+   .data : AT (_etext)
+   {
+     _sdata = .;
+     _sidata = LOADADDR(.data);
+     *(.data*)
+     *(.data.*)
+     _edata = .;
+   } > RAM
 
   /* Zero-initialized data (BSS) */
   .bss :
