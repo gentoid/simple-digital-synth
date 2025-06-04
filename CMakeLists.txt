@@ -14,7 +14,7 @@ set(SOURCES
         src/main.cpp
         src/stm32/stm32_def.c
         src/stm32/system_stm32f3xx.c
-        src/stm32/stm32f3xx_hal_timebase_tim.c
+#        src/stm32/stm32f3xx_hal_timebase_tim.c
         stm32/startup_stm32f303xc.s
 )
 
@@ -23,22 +23,22 @@ SET(CUSTOM_INCLUDE_PATH_2 "${CMAKE_SOURCE_DIR}/../STM32CubeF3-master")
 
 file(GLOB HAL_SOURCES
 #        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/*.c
-        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c
-        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c
-        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim.c
-        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim_ex.c
-        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_cortex.c
+#        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c
+#        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c
+#        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim.c
+#        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim_ex.c
+#        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_cortex.c
 )
 
 add_executable(${PROJECT_NAME}.elf ${SOURCES} ${HAL_SOURCES})
 
-target_compile_definitions(${PROJECT_NAME}.elf PRIVATE STM32F303xC STM32F3xx USE_HAL_DRIVER)
+target_compile_definitions(${PROJECT_NAME}.elf PRIVATE STM32F303xC STM32F3xx)
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
         ${CMAKE_SOURCE_DIR}/include
         ${CUSTOM_INCLUDE_PATH}/Drivers/CMSIS/Device/ST/STM32F3xx/Include
 #        ${CUSTOM_INCLUDE_PATH}/Drivers/CMSIS/Include
-        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Inc
+#        ${CUSTOM_INCLUDE_PATH}/Drivers/STM32F3xx_HAL_Driver/Inc
 #        ${CUSTOM_INCLUDE_PATH}/STM32F3xx
         ${CUSTOM_INCLUDE_PATH_2}/Drivers/CMSIS/Include
 #        ${CUSTOM_INCLUDE_PATH_2}/Drivers/CMSIS/Device/ST/STM32F3xx/Include
