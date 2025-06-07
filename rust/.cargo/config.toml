@@ -1,0 +1,9 @@
+[build]
+target = "thumbv7em-none-eabihf"
+
+[target.thumbv7em-none-eabihf]
+runner = "openocd -f interface/stlink.cfg -f target/stm32f3x.cfg -c 'program target/thumbv7em-none-eabihf/debug/rust verify reset exit'"
+# Can be replaced with "probe-rs", "stm32flash", "dfu-util" or even with own "flash.sh"
+
+[unstable]
+build-std = ["core"]
