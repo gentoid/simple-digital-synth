@@ -38,6 +38,9 @@ SECTIONS
   /* Code + const data */
    .text :
    {
+      KEEP(*(.text.Reset_Handler));
+      KEEP(*(.text._start));
+      KEEP(*(.text.main));
      *(.text*)
      *(.rodata*)
      *(.glue_7)

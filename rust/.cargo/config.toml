@@ -2,8 +2,14 @@
 target = "thumbv7em-none-eabihf"
 
 [target.thumbv7em-none-eabihf]
-runner = "openocd -f interface/stlink.cfg -f target/stm32f3x.cfg -c 'program target/thumbv7em-none-eabihf/debug/rust verify reset exit'"
+#runner = "probe-rs run"
+runner = "powershell -ExecutionPolicy Bypass -File ../stm32/flash.ps1"
+#runner = "openocd -f interface/stlink.cfg -f target/stm32f3x.cfg -c 'program {} verify reset exit'"
 # Can be replaced with "probe-rs", "stm32flash", "dfu-util" or even with own "flash.sh"
+#
+rustflags = [
+    "-C", "link-arg=-T../stm32/stm32f303vc.ld",
+]
 
 [unstable]
 build-std = ["core"]
