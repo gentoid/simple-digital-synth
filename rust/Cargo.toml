@@ -21,9 +21,6 @@ debug = false
 lto = true
 opt-level = "z"
 
-#[package.metadata.cortex-m-rt]
-#linker-script = "../stm32/memory.x"
-
 [[bin]]
 name = "main"
 path = "src/main.rs"

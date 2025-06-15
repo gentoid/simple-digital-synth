@@ -1,10 +1,10 @@
 $ElfPath = $args[0]
-$BinPath = [System.IO.Path]::ChangeExtension($ElfPath, "bin")
-& arm-none-eabi-objcopy -O binary $ElfPath $BinPath
+# $BinPath = [System.IO.Path]::ChangeExtension($ElfPath, "bin")
+# & arm-none-eabi-objcopy -O binary $ElfPath $BinPath
 
-$UnixBinPath = $BinPath -replace '\\', '/'
+$UnixBinPath = $ElfPath -replace '\\', '/'
 
 & openocd `
     -f interface/stlink.cfg `
     -f target/stm32f3x.cfg `
-    -c "program $UnixBinPath 0x08000000 verify reset exit"
+    -c "program $UnixBinPath verify reset exit"
