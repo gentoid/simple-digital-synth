@@ -19,12 +19,16 @@ pub mod consts;
 pub mod midi;
 pub mod tables;
 
-use crate::{consts::MIDI_NOTES_AMOUNT, tables::sine::SINE_WAVE};
+use crate::{
+    consts::MIDI_NOTES_AMOUNT,
+    tables::{midi_to_freq::PSC_ARR, sine::SINE_WAVE},
+};
 
 // for Encoder
 
 static CLK_PIN: Mutex<RefCell<Option<PB0<Input>>>> = Mutex::new(RefCell::new(None));
 static DT_PIN: Mutex<RefCell<Option<PB1<Input>>>> = Mutex::new(RefCell::new(None));
+static TIM7_HANDLE: Mutex<RefCell<Option<pac::TIM7>>> = Mutex::new(RefCell::new(None));
 
 static MIDI_NOTE: AtomicU16 = AtomicU16::new(69); // A1, 440Hz
 
@@ -42,7 +46,7 @@ fn main() -> ! {
     let mut rcc = rcc_regs.constrain();
 
     let mut flash = dp.FLASH.constrain();
-    let _clocks = rcc.cfgr.sysclk(40.MHz()).freeze(&mut flash.acr);
+    let _clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
     let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
@@ -72,6 +76,10 @@ fn main() -> ! {
         DT_PIN.borrow(cs).replace(Some(dt));
     });
 
+    cortex_m::interrupt::free(|cs| {
+        TIM7_HANDLE.borrow(cs).replace(Some(dp.TIM7));
+    });
+
     unsafe {
         cortex_m::peripheral::NVIC::unmask(pac::Interrupt::EXTI0);
     }
@@ -97,13 +105,18 @@ fn EXTI0() {
             clk.clear_interrupt();
 
             let dir = dt.is_high().unwrap_or(false);
-            let diff = if dir { Rotation::Left } else { Rotation::Right };
-            update_count(diff);
+            let direction = if dir { Rotation::Left } else { Rotation::Right };
+            update_note(direction);
+        }
+
+        if let Some(tim7) = TIM7_HANDLE.borrow(cs).borrow_mut().as_mut() {
+            let (psc, arr) = PSC_ARR[MIDI_NOTE.load(Ordering::Relaxed) as usize];
+            update_tim7(tim7, psc, arr);
         }
     });
 }
 
-fn update_count(direction: Rotation) {
+fn update_note(direction: Rotation) {
     MIDI_NOTE
         .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
             let new = if direction == Rotation::Right {
@@ -133,8 +146,9 @@ fn setup_dac_dma(tim: &pac::TIM7, dac: &pac::DAC1, dma: &pac::dma2::CH) {
         w.en().enabled()
     });
 
-    tim.psc.write(|w| w.psc().bits(39));
-    tim.arr.write(|w| w.arr().bits(255));
+    let (psc, arr) = PSC_ARR[MIDI_NOTE.load(Ordering::Relaxed) as usize];
+    tim.psc.write(|w| w.psc().bits(psc));
+    tim.arr.write(|w| w.arr().bits(arr));
     tim.cr2.write(|w| w.mms().update());
     tim.cr1.modify(|_, w| w.cen().set_bit());
 
@@ -144,4 +158,17 @@ fn setup_dac_dma(tim: &pac::TIM7, dac: &pac::DAC1, dma: &pac::dma2::CH) {
         w.dmaen1().enabled();
         w.en1().enabled()
     });
+}
+
+fn update_tim7(tim: &pac::TIM7, psc: u16, arr: u16) {
+    // Stop the timer
+    tim.cr1.modify(|_, w| w.cen().clear_bit());
+
+    tim.psc.write(|w| w.psc().bits(psc));
+    tim.arr.write(|w| w.arr().bits(arr));
+
+    tim.egr.write(|w| w.ug().set_bit());
+
+    // Resume the timer
+    tim.cr1.modify(|_, w| w.cen().set_bit());
 }
