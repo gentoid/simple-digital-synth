@@ -3,61 +3,66 @@
 
 use core::{
     cell::RefCell,
-    sync::atomic::{AtomicI16, Ordering},
+    sync::atomic::{AtomicU16, Ordering},
 };
 
 use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 use panic_halt as _;
 use stm32f3xx_hal::{
-    self as hal,
-    delay::Delay,
-    gpio::{Edge, Input, PA0, PA1},
-    interrupt,
+    gpio::{Edge, Input, PB0, PB1},
+    interrupt, pac,
+    prelude::*,
 };
 
-use hal::{pac, prelude::*};
-use stm32f3xx_hal::pwm;
+pub mod consts;
+pub mod midi;
+pub mod tables;
+
+use crate::{consts::MIDI_NOTES_AMOUNT, tables::sine::SINE_WAVE};
 
 // for Encoder
 
-static CLK_PIN: Mutex<RefCell<Option<PA0<Input>>>> = Mutex::new(RefCell::new(None));
-static DT_PIN: Mutex<RefCell<Option<PA1<Input>>>> = Mutex::new(RefCell::new(None));
-static COUNT: AtomicI16 = AtomicI16::new(1);
+static CLK_PIN: Mutex<RefCell<Option<PB0<Input>>>> = Mutex::new(RefCell::new(None));
+static DT_PIN: Mutex<RefCell<Option<PB1<Input>>>> = Mutex::new(RefCell::new(None));
+
+static MIDI_NOTE: AtomicU16 = AtomicU16::new(69); // A1, 440Hz
 
 #[entry]
 fn main() -> ! {
     let mut dp = pac::Peripherals::take().unwrap();
-    let cp = cortex_m::Peripherals::take().unwrap();
-    let mut flash = dp.FLASH.constrain();
-    let mut rcc = dp.RCC.constrain();
 
-    let clocks = rcc.cfgr.sysclk(40.MHz()).freeze(&mut flash.acr);
+    let rcc_regs = dp.RCC;
+    rcc_regs.ahbenr.modify(|_, w| w.dma2en().enabled());
+    rcc_regs.apb1enr.modify(|_, w| {
+        w.dac1en().enabled();
+        w.tim7en().set_bit()
+    });
+
+    let mut rcc = rcc_regs.constrain();
+
+    let mut flash = dp.FLASH.constrain();
+    let _clocks = rcc.cfgr.sysclk(40.MHz()).freeze(&mut flash.acr);
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
-    let mut delay = Delay::new(cp.SYST, clocks);
+    let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
+    let dma = dp.DMA2;
 
-    // sawtooth
+    setup_dac_dma(&dp.TIM7, &dp.DAC1, &dma.ch3);
 
-    let pa8 = gpioa
-        .pa8
-        .into_af_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
-    let tim1_channels = pwm::tim1(dp.TIM1, 256 - 1, 30_000.Hz(), &clocks);
+    // // Encoder
 
-    let mut tim1_ch1 = tim1_channels.0.output_to_pa8(pa8);
-    tim1_ch1.enable();
+    let mut gpiob = dp.GPIOB.split(&mut rcc.ahb);
 
-    let max_duty = tim1_ch1.get_max_duty();
-    let mut duty = 0;
+    let mut clk = gpiob
+        .pb0
+        .into_pull_up_input(&mut gpiob.moder, &mut gpiob.pupdr);
+    let dt = gpiob
+        .pb1
+        .into_pull_up_input(&mut gpiob.moder, &mut gpiob.pupdr);
 
-    // Encoder
-
-    let mut clk = gpioa
-        .pa0
-        .into_pull_up_input(&mut gpioa.moder, &mut gpioa.pupdr);
-    let dt = gpioa
-        .pa1
-        .into_pull_up_input(&mut gpioa.moder, &mut gpioa.pupdr);
+    let mut syscfg = dp.SYSCFG.constrain(&mut rcc.apb2);
+    syscfg.select_exti_interrupt_source(&clk);
 
     clk.enable_interrupt(&mut dp.EXTI);
     clk.trigger_on_edge(&mut dp.EXTI, Edge::Falling);
@@ -68,20 +73,18 @@ fn main() -> ! {
     });
 
     unsafe {
-        cortex_m::peripheral::NVIC::unmask(pac::interrupt::EXTI0);
+        cortex_m::peripheral::NVIC::unmask(pac::Interrupt::EXTI0);
     }
 
     loop {
-        let count = COUNT.load(Ordering::Relaxed) as u16;
-        tim1_ch1.set_duty(duty);
-
-        duty += 7 + count / 5;
-        if duty >= max_duty {
-            duty = 0;
-        }
-
-        delay.delay_us(count * count);
+        cortex_m::asm::wfi();
     }
+}
+
+#[derive(PartialEq)]
+enum Rotation {
+    Left,
+    Right,
 }
 
 #[interrupt]
@@ -94,17 +97,51 @@ fn EXTI0() {
             clk.clear_interrupt();
 
             let dir = dt.is_high().unwrap_or(false);
-            let diff = if dir { 1 } else { -1 };
+            let diff = if dir { Rotation::Left } else { Rotation::Right };
             update_count(diff);
         }
     });
 }
 
-fn update_count(diff: i16) {
-    COUNT
+fn update_count(direction: Rotation) {
+    MIDI_NOTE
         .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-            let new = current.saturating_add(diff).clamp(1, 30);
-            Some(new)
+            let new = if direction == Rotation::Right {
+                current.saturating_add(1)
+            } else {
+                current.saturating_sub(1)
+            };
+            Some(new.clamp(0, MIDI_NOTES_AMOUNT as u16 - 1))
         })
         .ok();
+}
+
+fn setup_dac_dma(tim: &pac::TIM7, dac: &pac::DAC1, dma: &pac::dma2::CH) {
+    dma.mar
+        .write(|w| unsafe { w.ma().bits(SINE_WAVE.as_ptr() as u32) });
+    dma.par.write(|w| unsafe { w.pa().bits(0x40007408) });
+    dma.ndtr.write(|w| w.ndt().bits(SINE_WAVE.len() as u16));
+    dma.cr.write(|w| {
+        w.mem2mem().disabled();
+        w.pl().high();
+        w.msize().bits16();
+        w.psize().bits16();
+        w.minc().enabled();
+        w.pinc().disabled();
+        w.dir().from_memory();
+        w.circ().enabled();
+        w.en().enabled()
+    });
+
+    tim.psc.write(|w| w.psc().bits(39));
+    tim.arr.write(|w| w.arr().bits(255));
+    tim.cr2.write(|w| w.mms().update());
+    tim.cr1.modify(|_, w| w.cen().set_bit());
+
+    dac.cr.modify(|_, w| {
+        w.ten1().enabled();
+        w.tsel1().tim7_trgo();
+        w.dmaen1().enabled();
+        w.en1().enabled()
+    });
 }
