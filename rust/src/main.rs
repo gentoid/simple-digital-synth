@@ -3,56 +3,59 @@
 
 use core::{
     cell::RefCell,
-    sync::atomic::{AtomicU16, Ordering},
+    sync::atomic::{AtomicU8, Ordering},
 };
 
 use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 use panic_halt as _;
 use stm32f3xx_hal::{
+    dac::Dac,
     gpio::{Edge, Input, PB0, PB1},
     interrupt, pac,
     prelude::*,
+    time::duration::Nanoseconds,
+    timer::Timer,
 };
 
 pub mod consts;
 pub mod midi;
+pub mod oscillator;
 pub mod tables;
 
 use crate::{
-    consts::MIDI_NOTES_AMOUNT,
-    tables::{midi_to_freq::PSC_ARR, sine::SINE_WAVE},
+    consts::{MIDI_NOTES_AMOUNT, SAMPLE_RATE},
+    midi::midi_note_to_freq,
+    oscillator::Oscillator,
 };
 
 // for Encoder
 
 static CLK_PIN: Mutex<RefCell<Option<PB0<Input>>>> = Mutex::new(RefCell::new(None));
 static DT_PIN: Mutex<RefCell<Option<PB1<Input>>>> = Mutex::new(RefCell::new(None));
-static TIM7_HANDLE: Mutex<RefCell<Option<pac::TIM7>>> = Mutex::new(RefCell::new(None));
+static DAC_HANDLE: Mutex<RefCell<Option<Dac>>> = Mutex::new(RefCell::new(None));
+static OSCILLATOR: Mutex<RefCell<Option<Oscillator>>> = Mutex::new(RefCell::new(None));
+static TIM6_HANDLE: Mutex<RefCell<Option<Timer<pac::TIM6>>>> = Mutex::new(RefCell::new(None));
 
-static MIDI_NOTE: AtomicU16 = AtomicU16::new(69); // A1, 440Hz
+static MIDI_NOTE: AtomicU8 = AtomicU8::new(69); // A1, 440Hz
 
 #[entry]
 fn main() -> ! {
     let mut dp = pac::Peripherals::take().unwrap();
 
     let rcc_regs = dp.RCC;
-    rcc_regs.ahbenr.modify(|_, w| w.dma2en().enabled());
-    rcc_regs.apb1enr.modify(|_, w| {
-        w.dac1en().enabled();
-        w.tim7en().set_bit()
-    });
-
     let mut rcc = rcc_regs.constrain();
 
     let mut flash = dp.FLASH.constrain();
-    let _clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
+    let clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
     let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
-    let dma = dp.DMA2;
 
-    setup_dac_dma(&dp.TIM7, &dp.DAC1, &dma.ch3);
+    let mut timer = Timer::new(dp.TIM6, clocks, &mut rcc.apb1);
+    timer.configure_interrupt(stm32f3xx_hal::timer::Event::Update, true);
+    timer.enable_interrupt(stm32f3xx_hal::timer::Event::Update);
+    timer.start(Nanoseconds(1_000_000_000u32 / SAMPLE_RATE as u32));
 
     // // Encoder
 
@@ -71,17 +74,19 @@ fn main() -> ! {
     clk.enable_interrupt(&mut dp.EXTI);
     clk.trigger_on_edge(&mut dp.EXTI, Edge::Falling);
 
+    let dac = Dac::new(dp.DAC1, &mut rcc.apb1);
+    let osc = Oscillator::new(midi_note_to_freq(MIDI_NOTE.load(Ordering::Relaxed)));
+
     cortex_m::interrupt::free(|cs| {
         CLK_PIN.borrow(cs).replace(Some(clk));
         DT_PIN.borrow(cs).replace(Some(dt));
-    });
-
-    cortex_m::interrupt::free(|cs| {
-        TIM7_HANDLE.borrow(cs).replace(Some(dp.TIM7));
+        DAC_HANDLE.borrow(cs).replace(Some(dac));
+        OSCILLATOR.borrow(cs).replace(Some(osc));
     });
 
     unsafe {
         cortex_m::peripheral::NVIC::unmask(pac::Interrupt::EXTI0);
+        cortex_m::peripheral::NVIC::unmask(pac::Interrupt::TIM6_DACUNDER);
     }
 
     loop {
@@ -106,17 +111,35 @@ fn EXTI0() {
 
             let dir = dt.is_high().unwrap_or(false);
             let direction = if dir { Rotation::Left } else { Rotation::Right };
-            update_note(direction);
-        }
+            let new_note = update_note(direction);
 
-        if let Some(tim7) = TIM7_HANDLE.borrow(cs).borrow_mut().as_mut() {
-            let (psc, arr) = PSC_ARR[MIDI_NOTE.load(Ordering::Relaxed) as usize];
-            update_tim7(tim7, psc, arr);
+            let mut osc = OSCILLATOR.borrow(cs).borrow_mut();
+            if let (Some(osc), Some(note)) = (osc.as_mut(), new_note) {
+                osc.set_freq(midi_note_to_freq(note));
+            }
         }
     });
 }
 
-fn update_note(direction: Rotation) {
+#[interrupt]
+fn TIM6_DACUNDER() {
+    cortex_m::interrupt::free(|cs| {
+        let mut tim6 = TIM6_HANDLE.borrow(cs).borrow_mut();
+        if let Some(tim) = tim6.as_mut() {
+            tim.clear_event(stm32f3xx_hal::timer::Event::Update);
+        }
+
+        let mut dac = DAC_HANDLE.borrow(cs).borrow_mut();
+        let mut osc = OSCILLATOR.borrow(cs).borrow_mut();
+
+        if let (Some(dac), Some(osc)) = (dac.as_mut(), osc.as_mut()) {
+            let sample = osc.next_sample();
+            dac.write_data(sample);
+        }
+    });
+}
+
+fn update_note(direction: Rotation) -> Option<u8> {
     MIDI_NOTE
         .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
             let new = if direction == Rotation::Right {
@@ -124,51 +147,7 @@ fn update_note(direction: Rotation) {
             } else {
                 current.saturating_sub(1)
             };
-            Some(new.clamp(0, MIDI_NOTES_AMOUNT as u16 - 1))
+            Some(new.clamp(0, (MIDI_NOTES_AMOUNT - 1) as u8))
         })
-        .ok();
-}
-
-fn setup_dac_dma(tim: &pac::TIM7, dac: &pac::DAC1, dma: &pac::dma2::CH) {
-    dma.mar
-        .write(|w| unsafe { w.ma().bits(SINE_WAVE.as_ptr() as u32) });
-    dma.par.write(|w| unsafe { w.pa().bits(0x40007408) });
-    dma.ndtr.write(|w| w.ndt().bits(SINE_WAVE.len() as u16));
-    dma.cr.write(|w| {
-        w.mem2mem().disabled();
-        w.pl().high();
-        w.msize().bits16();
-        w.psize().bits16();
-        w.minc().enabled();
-        w.pinc().disabled();
-        w.dir().from_memory();
-        w.circ().enabled();
-        w.en().enabled()
-    });
-
-    let (psc, arr) = PSC_ARR[MIDI_NOTE.load(Ordering::Relaxed) as usize];
-    tim.psc.write(|w| w.psc().bits(psc));
-    tim.arr.write(|w| w.arr().bits(arr));
-    tim.cr2.write(|w| w.mms().update());
-    tim.cr1.modify(|_, w| w.cen().set_bit());
-
-    dac.cr.modify(|_, w| {
-        w.ten1().enabled();
-        w.tsel1().tim7_trgo();
-        w.dmaen1().enabled();
-        w.en1().enabled()
-    });
-}
-
-fn update_tim7(tim: &pac::TIM7, psc: u16, arr: u16) {
-    // Stop the timer
-    tim.cr1.modify(|_, w| w.cen().clear_bit());
-
-    tim.psc.write(|w| w.psc().bits(psc));
-    tim.arr.write(|w| w.arr().bits(arr));
-
-    tim.egr.write(|w| w.ug().set_bit());
-
-    // Resume the timer
-    tim.cr1.modify(|_, w| w.cen().set_bit());
+        .ok()
 }
