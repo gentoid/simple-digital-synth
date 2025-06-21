@@ -48,15 +48,18 @@ fn main() -> ! {
     rcc_regs.apb1enr.modify(|_, w| w.tim7en().set_bit());
 
     let tim7 = &dp.TIM7;
-    tim7.cr1.modify(|_, w| w.cen().clear_bit()); // Disable timer
-    tim7.psc.write(|w| w.psc().bits(7999)); // Prescaler for 1kHz with 8MHz clock
-    tim7.arr.write(|w| w.arr().bits(50)); // Auto-reload value for 1kHz
-    tim7.dier.modify(|_, w| w.uie().set_bit()); // Enable update interrupt
+    tim7.cr1.modify(|_, w| {
+        w.cen().clear_bit();
+        w.udis().clear_bit()
+    });
+    // tim7.psc.write(|w| w.psc().bits(0));
+    // tim7.arr.write(|w| w.arr().bits(332));
+    tim7.egr.write(|w| w.ug().set_bit());
 
     let mut rcc = rcc_regs.constrain();
 
     let mut flash = dp.FLASH.constrain();
-    let clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
+    let _clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
     let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
@@ -100,6 +103,7 @@ fn main() -> ! {
         pac::NVIC::unmask(pac::Interrupt::TIM7);
     }
 
+    tim7.dier.modify(|_, w| w.uie().set_bit());
     tim7.cr1.modify(|_, w| w.cen().set_bit());
 
     loop {

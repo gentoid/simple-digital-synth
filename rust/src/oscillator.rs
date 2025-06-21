@@ -42,6 +42,6 @@ impl Oscillator {
     }
 
     fn update_phase_inc(&mut self) {
-        self.phase_inc = self.freq * TAU / self.sample_rate;
+        self.phase_inc = 2.88 * self.freq * TAU / self.sample_rate;
     }
 }
