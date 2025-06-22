@@ -16,8 +16,8 @@ panic-probe = { version = "1.0", features = ["print-defmt"] }
 [profile.dev]
 codegen-units = 1
 debug = true
-lto = true
-opt-level = "z"
+lto = false
+opt-level = 0
 
 [profile.release]
 codegen-units = 1
