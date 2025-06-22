@@ -23,8 +23,11 @@ pub mod consts;
 pub mod midi;
 pub mod oscillator;
 pub mod tables;
+pub mod filter;
+pub mod encoder;
+pub mod state;
 
-use crate::{consts::MIDI_NOTES_AMOUNT, midi::midi_note_to_freq, oscillator::Oscillator};
+use crate::{consts::MIDI_NOTES_AMOUNT, encoder::Rotation, midi::midi_note_to_freq, oscillator::Oscillator};
 
 // for Encoder
 
@@ -107,12 +110,6 @@ fn main() -> ! {
     loop {
         cortex_m::asm::wfi();
     }
-}
-
-#[derive(PartialEq)]
-enum Rotation {
-    Left,
-    Right,
 }
 
 #[interrupt]
