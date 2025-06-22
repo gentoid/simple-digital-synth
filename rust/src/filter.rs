@@ -16,7 +16,7 @@ impl Filter {
     pub const fn new() -> Self {
         Self {
             cutoff: 10_000.0,
-            gain: 0.0,
+            gain: 1.0,
             resonance: 0.71,
             sample_rate: SAMPLE_RATE,
             z1: 0.0,

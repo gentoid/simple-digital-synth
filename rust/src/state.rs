@@ -1,7 +1,6 @@
 use defmt::info;
 
 use crate::{
-    consts::MIDI_NOTES_AMOUNT,
     encoder::{EncoderParam, Rotation},
     filter::{Filter, FilterParam},
 };
@@ -40,26 +39,26 @@ impl State {
         match param {
             FilterParam::Cutoff => {
                 let delta = if rotation == Rotation::Right {
-                    1.1
+                    1.01
                 } else {
-                    1.0 / 1.1
+                    1.0 / 1.01
                 };
                 self.filter.cutoff = delta * self.filter.cutoff;
                 info!("Set filter cutoff: {}", self.filter.cutoff);
             }
             FilterParam::Resonance => {
                 if rotation == Rotation::Right {
-                    self.filter.resonance += 1.0;
+                    self.filter.resonance += 0.05;
                 } else {
-                    self.filter.resonance -= 1.0;
+                    self.filter.resonance -= 0.05;
                 };
                 info!("Set filter resonance: {}", self.filter.resonance);
             }
             FilterParam::Gain => {
                 if rotation == Rotation::Right {
-                    self.filter.gain += 1.0;
+                    self.filter.gain += 0.05;
                 } else {
-                    self.filter.gain -= 1.0;
+                    self.filter.gain -= 0.05;
                 };
                 info!("Set filter gain: {}", self.filter.gain);
             }

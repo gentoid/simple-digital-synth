@@ -30,7 +30,7 @@ impl Oscillator {
         self.update_phase_inc();
     }
 
-    pub fn next_sample(&mut self) -> u16 {
+    pub fn next_sample(&mut self) -> f32 {
         let sample = MAX_DAC_VALUE as f32 * (sinf(self.phase) + 1.0) / 2.0;
         self.phase += self.phase_inc;
 
@@ -38,7 +38,7 @@ impl Oscillator {
             self.phase -= TAU;
         }
 
-        sample as u16
+        sample
     }
 
     fn update_phase_inc(&mut self) {

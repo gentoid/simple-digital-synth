@@ -18,7 +18,9 @@ pub mod oscillator;
 pub mod state;
 pub mod tables;
 
-use crate::{encoder::Rotation, midi::midi_note_to_freq, oscillator::Oscillator, state::State};
+use crate::{
+    consts::MAX_DAC_VALUE, encoder::{EncoderParam, Rotation}, midi::midi_note_to_freq, oscillator::Oscillator, state::State
+};
 
 // for Encoder
 
@@ -132,17 +134,18 @@ fn EXTI0() {
 
             let dir = dt.is_high().unwrap_or(false);
             let rotation = if dir { Rotation::Left } else { Rotation::Right };
-            // let new_note = update_note(direction);
 
             let mut state = STATE.borrow(cs).borrow_mut();
             let encoder = ENCODER.borrow(cs).borrow();
 
             state.adjust(&encoder.parameter, rotation);
 
-            // let mut osc = OSCILLATOR.borrow(cs).borrow_mut();
-            // if let (Some(osc), Some(note)) = (osc.as_mut(), new_note) {
-            //     osc.set_freq(midi_note_to_freq(note));
-            // }
+            let mut osc = OSCILLATOR.borrow(cs).borrow_mut();
+            if let EncoderParam::MidiNote = encoder.parameter {
+                if let Some(osc) = osc.as_mut() {
+                    osc.set_freq(midi_note_to_freq(state.midi_note));
+                }
+            }
         }
     });
 }
@@ -170,10 +173,13 @@ fn TIM7() {
 
         let mut dac = DAC_HANDLE.borrow(cs).borrow_mut();
         let mut osc = OSCILLATOR.borrow(cs).borrow_mut();
+        let mut state = STATE.borrow(cs).borrow_mut();
 
         if let (Some(dac), Some(osc)) = (dac.as_mut(), osc.as_mut()) {
             let sample = osc.next_sample();
-            dac.write_data(sample);
+            let filtered = state.filter.process(sample);
+            let as_u16 = (filtered as u16).clamp(0, MAX_DAC_VALUE);
+            dac.write_data(as_u16);
         }
     });
 }
