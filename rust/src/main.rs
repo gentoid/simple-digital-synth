@@ -3,6 +3,7 @@
 
 use core::{
     cell::RefCell,
+    fmt::Write,
     sync::atomic::{AtomicU8, Ordering},
 };
 
@@ -12,8 +13,9 @@ use panic_halt as _;
 use stm32f3xx_hal::{
     dac::Dac,
     gpio::{Edge, Input, PB0, PB1},
-    interrupt, pac,
+    interrupt, nb, pac,
     prelude::*,
+    serial::Serial,
     time::duration::Nanoseconds,
     timer::Timer,
 };
@@ -59,10 +61,23 @@ fn main() -> ! {
     let mut rcc = rcc_regs.constrain();
 
     let mut flash = dp.FLASH.constrain();
-    let _clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
+    let clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
     let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
+
+    // USART
+    let tx = gpioa
+        .pa2
+        .into_af7_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+    let rx = gpioa
+        .pa3
+        .into_af7_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+
+    let mut serial = Serial::new(dp.USART2, (tx, rx), 115_200.Bd(), clocks, &mut rcc.apb1);
+    nb::block!(serial.write(b'6')).unwrap();
+    // nb::fmt::write(&mut serial, "Hello {there}");
+    writeln!(serial, "hello ").unwrap();
 
     // let mut timer = Timer::new(dp.TIM7, clocks, &mut rcc.apb1);
     // timer.configure_interrupt(stm32f3xx_hal::timer::Event::Update, true);
