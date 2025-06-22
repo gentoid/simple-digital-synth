@@ -12,6 +12,12 @@ pub struct State {
 }
 
 impl State {
+    pub const fn new() -> Self {
+        Self {
+            filter: Filter::new(),
+            midi_note: 69,
+        }
+    }
     pub fn adjust(&mut self, param: &EncoderParam, rotation: Rotation) {
         match param {
             EncoderParam::MidiNote => self.udajust_midi_note(rotation),
@@ -38,22 +44,22 @@ impl State {
                 } else {
                     1.0 / 1.1
                 };
-                self.filter.cutoff = (delta * self.filter.cutoff as f32) as u16;
+                self.filter.cutoff = delta * self.filter.cutoff;
                 info!("Set filter cutoff: {}", self.filter.cutoff);
             }
             FilterParam::Resonance => {
-                self.filter.resonance = if rotation == Rotation::Right {
-                    self.filter.resonance.saturating_add(1)
+                if rotation == Rotation::Right {
+                    self.filter.resonance += 1.0;
                 } else {
-                    self.filter.resonance.saturating_sub(1)
+                    self.filter.resonance -= 1.0;
                 };
                 info!("Set filter resonance: {}", self.filter.resonance);
             }
             FilterParam::Gain => {
-                self.filter.gain = if rotation == Rotation::Right {
-                    self.filter.gain.saturating_add(1)
+                if rotation == Rotation::Right {
+                    self.filter.gain += 1.0;
                 } else {
-                    self.filter.gain.saturating_sub(1)
+                    self.filter.gain -= 1.0;
                 };
                 info!("Set filter gain: {}", self.filter.gain);
             }

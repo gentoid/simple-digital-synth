@@ -18,10 +18,7 @@ pub mod oscillator;
 pub mod state;
 pub mod tables;
 
-use crate::{
-    encoder::Rotation, filter::Filter, midi::midi_note_to_freq, oscillator::Oscillator,
-    state::State,
-};
+use crate::{encoder::Rotation, midi::midi_note_to_freq, oscillator::Oscillator, state::State};
 
 // for Encoder
 
@@ -33,18 +30,9 @@ static OSCILLATOR: Mutex<RefCell<Option<Oscillator>>> = Mutex::new(RefCell::new(
 // static TIM7_HANDLE: Mutex<RefCell<Option<Timer<pac::TIM7>>>> = Mutex::new(RefCell::new(None));
 
 static ENCODER: Mutex<RefCell<crate::encoder::Encoder>> =
-    Mutex::new(RefCell::new(crate::encoder::Encoder {
-        parameter: encoder::EncoderParam::MidiNote,
-    }));
+    Mutex::new(RefCell::new(crate::encoder::Encoder::new()));
 
-static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State {
-    midi_note: 69,
-    filter: Filter {
-        cutoff: 10_000,
-        gain: 0,
-        resonance: 7,
-    },
-}));
+static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State::new()));
 
 #[entry]
 fn main() -> ! {

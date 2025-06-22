@@ -15,7 +15,7 @@ pub enum EncoderParam {
 }
 
 impl EncoderParam {
-    pub fn init_param() -> Self {
+    pub const fn init_param() -> Self {
         EncoderParam::MidiNote
     }
 }
@@ -25,7 +25,7 @@ pub struct Encoder {
 }
 
 impl Encoder {
-    pub fn new () -> Self {
+    pub const fn new () -> Self {
         Self { parameter: EncoderParam::init_param() }
     }
     pub fn next_param(&mut self) {
