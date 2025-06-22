@@ -1,8 +1,8 @@
 use core::f32::consts::TAU;
 
-use defmt::Format;
+use defmt::{Format, info};
 
-use crate::consts::SAMPLE_RATE;
+use crate::{consts::SAMPLE_RATE, encoder::Rotation};
 
 pub struct Filter {
     pub cutoff: f32,
@@ -30,6 +30,36 @@ impl Filter {
 
         self.z1 += alpha * (input - self.z1);
         self.gain * self.z1
+    }
+
+    pub fn adjust(&mut self, param: &FilterParam, rotation: Rotation) {
+        match param {
+            FilterParam::Cutoff => {
+                let delta = if rotation == Rotation::Right {
+                    1.01
+                } else {
+                    1.0 / 1.01
+                };
+                self.cutoff = delta * self.cutoff;
+                info!("Set filter cutoff: {}", self.cutoff);
+            }
+            FilterParam::Resonance => {
+                if rotation == Rotation::Right {
+                    self.resonance += 0.05;
+                } else {
+                    self.resonance -= 0.05;
+                };
+                info!("Set filter resonance: {}", self.resonance);
+            }
+            FilterParam::Gain => {
+                if rotation == Rotation::Right {
+                    self.gain += 0.05;
+                } else {
+                    self.gain -= 0.05;
+                };
+                info!("Set filter gain: {}", self.gain);
+            }
+        }
     }
 }
 
