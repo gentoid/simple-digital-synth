@@ -9,15 +9,14 @@ use core::{
 
 use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
-use panic_halt as _;
+use defmt::*;
+use defmt_rtt as _;
+use panic_probe as _;
 use stm32f3xx_hal::{
     dac::Dac,
     gpio::{Edge, Input, PB0, PB1},
-    interrupt, nb, pac,
+    interrupt, pac,
     prelude::*,
-    serial::Serial,
-    time::duration::Nanoseconds,
-    timer::Timer,
 };
 
 pub mod consts;
@@ -25,11 +24,7 @@ pub mod midi;
 pub mod oscillator;
 pub mod tables;
 
-use crate::{
-    consts::{MIDI_NOTES_AMOUNT, SAMPLE_RATE},
-    midi::midi_note_to_freq,
-    oscillator::Oscillator,
-};
+use crate::{consts::MIDI_NOTES_AMOUNT, midi::midi_note_to_freq, oscillator::Oscillator};
 
 // for Encoder
 
@@ -43,6 +38,7 @@ static MIDI_NOTE: AtomicU8 = AtomicU8::new(69); // A1, 440Hz
 
 #[entry]
 fn main() -> ! {
+    info!("Starting the app");
     let mut dp = pac::Peripherals::take().unwrap();
 
     let rcc_regs = dp.RCC;
@@ -65,19 +61,6 @@ fn main() -> ! {
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
     let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
-
-    // USART
-    let tx = gpioa
-        .pa2
-        .into_af7_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
-    let rx = gpioa
-        .pa3
-        .into_af7_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
-
-    let mut serial = Serial::new(dp.USART2, (tx, rx), 115_200.Bd(), clocks, &mut rcc.apb1);
-    nb::block!(serial.write(b'6')).unwrap();
-    // nb::fmt::write(&mut serial, "Hello {there}");
-    writeln!(serial, "hello ").unwrap();
 
     // let mut timer = Timer::new(dp.TIM7, clocks, &mut rcc.apb1);
     // timer.configure_interrupt(stm32f3xx_hal::timer::Event::Update, true);

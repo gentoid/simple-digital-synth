@@ -7,7 +7,11 @@ runner = "powershell -ExecutionPolicy Bypass -File ../stm32/flash.ps1"
 
 rustflags = [
     "-C", "link-arg=-Tlink.x",
+    "-C", "link-arg=-Tdefmt.x",
 ]
 
 [unstable]
 build-std = ["core"]
+
+[env]
+DEFMT_LOG = "debug"
