@@ -1,19 +1,43 @@
+use defmt::{info, Format};
+
 use crate::filter::FilterParam;
-
-
-pub enum  EncoderParam {
-    MidiNote,
-    Filter(FilterParam),
-}
-
-pub struct Encoder {
-    parameter: EncoderParam,
-}
 
 #[derive(PartialEq)]
 pub enum Rotation {
     Left,
     Right,
+}
+
+#[derive(Debug, Format)]
+pub enum EncoderParam {
+    MidiNote,
+    Filter(FilterParam),
+}
+
+impl EncoderParam {
+    pub fn init_param() -> Self {
+        EncoderParam::MidiNote
+    }
+}
+
+pub struct Encoder {
+    pub parameter: EncoderParam,
+}
+
+impl Encoder {
+    pub fn new () -> Self {
+        Self { parameter: EncoderParam::init_param() }
+    }
+    pub fn next_param(&mut self) {
+        use EncoderParam::*;
+
+        self.parameter = match &self.parameter {
+            MidiNote => Filter(FilterParam::init_param()),
+            Filter(param) => FilterParam::next_param(param).map_or(MidiNote, Filter),
+        };
+
+        info!("Next parameter is: {:?}", self.parameter);
+    }
 }
 
 // pub struct Encoder {

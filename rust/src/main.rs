@@ -1,43 +1,50 @@
 #![no_main]
 #![no_std]
 
-use core::{
-    cell::RefCell,
-    fmt::Write,
-    sync::atomic::{AtomicU8, Ordering},
-};
+use core::cell::RefCell;
 
 use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
 use panic_probe as _;
-use stm32f3xx_hal::{
-    dac::Dac,
-    gpio::{Edge, Input, PB0, PB1},
-    interrupt, pac,
-    prelude::*,
-};
+use stm32f3xx_hal::{dac::Dac, gpio, interrupt, pac, prelude::*};
 
 pub mod consts;
+pub mod encoder;
+pub mod filter;
 pub mod midi;
 pub mod oscillator;
-pub mod tables;
-pub mod filter;
-pub mod encoder;
 pub mod state;
+pub mod tables;
 
-use crate::{consts::MIDI_NOTES_AMOUNT, encoder::Rotation, midi::midi_note_to_freq, oscillator::Oscillator};
+use crate::{
+    encoder::Rotation, filter::Filter, midi::midi_note_to_freq, oscillator::Oscillator,
+    state::State,
+};
 
 // for Encoder
 
-static CLK_PIN: Mutex<RefCell<Option<PB0<Input>>>> = Mutex::new(RefCell::new(None));
-static DT_PIN: Mutex<RefCell<Option<PB1<Input>>>> = Mutex::new(RefCell::new(None));
+static CLK_PIN: Mutex<RefCell<Option<gpio::PB0<gpio::Input>>>> = Mutex::new(RefCell::new(None));
+static DT_PIN: Mutex<RefCell<Option<gpio::PB1<gpio::Input>>>> = Mutex::new(RefCell::new(None));
+static BTN_PIN: Mutex<RefCell<Option<gpio::PB4<gpio::Input>>>> = Mutex::new(RefCell::new(None));
 static DAC_HANDLE: Mutex<RefCell<Option<Dac>>> = Mutex::new(RefCell::new(None));
 static OSCILLATOR: Mutex<RefCell<Option<Oscillator>>> = Mutex::new(RefCell::new(None));
 // static TIM7_HANDLE: Mutex<RefCell<Option<Timer<pac::TIM7>>>> = Mutex::new(RefCell::new(None));
 
-static MIDI_NOTE: AtomicU8 = AtomicU8::new(69); // A1, 440Hz
+static ENCODER: Mutex<RefCell<crate::encoder::Encoder>> =
+    Mutex::new(RefCell::new(crate::encoder::Encoder {
+        parameter: encoder::EncoderParam::MidiNote,
+    }));
+
+static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State {
+    midi_note: 69,
+    filter: Filter {
+        cutoff: 10_000,
+        gain: 0,
+        resonance: 7,
+    },
+}));
 
 #[entry]
 fn main() -> ! {
@@ -60,7 +67,7 @@ fn main() -> ! {
     let mut rcc = rcc_regs.constrain();
 
     let mut flash = dp.FLASH.constrain();
-    let clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
+    let _clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
     let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
@@ -80,26 +87,40 @@ fn main() -> ! {
     let dt = gpiob
         .pb1
         .into_pull_up_input(&mut gpiob.moder, &mut gpiob.pupdr);
+    let mut btn = gpiob
+        .pb4
+        .into_pull_up_input(&mut gpiob.moder, &mut gpiob.pupdr);
 
     let mut syscfg = dp.SYSCFG.constrain(&mut rcc.apb2);
-    syscfg.select_exti_interrupt_source(&clk);
 
+    syscfg.select_exti_interrupt_source(&clk);
     clk.enable_interrupt(&mut dp.EXTI);
-    clk.trigger_on_edge(&mut dp.EXTI, Edge::Falling);
+    clk.trigger_on_edge(&mut dp.EXTI, gpio::Edge::Falling);
+
+    syscfg.select_exti_interrupt_source(&btn);
+    btn.enable_interrupt(&mut dp.EXTI);
+    btn.trigger_on_edge(&mut dp.EXTI, gpio::Edge::Falling);
 
     let dac = Dac::new(dp.DAC1, &mut rcc.apb1);
-    let osc = Oscillator::new(midi_note_to_freq(MIDI_NOTE.load(Ordering::Relaxed)));
 
     cortex_m::interrupt::free(|cs| {
+        let freq = midi_note_to_freq(STATE.borrow(cs).borrow().midi_note);
+        let osc = Oscillator::new(freq);
+
         CLK_PIN.borrow(cs).replace(Some(clk));
         DT_PIN.borrow(cs).replace(Some(dt));
         DAC_HANDLE.borrow(cs).replace(Some(dac));
         OSCILLATOR.borrow(cs).replace(Some(osc));
+        BTN_PIN.borrow(cs).replace(Some(btn));
         // TIM7_HANDLE.borrow(cs).replace(Some(timer));
     });
 
     unsafe {
         pac::NVIC::unmask(pac::Interrupt::EXTI0);
+
+        pac::NVIC::unpend(pac::Interrupt::EXTI4);
+        pac::NVIC::unmask(pac::Interrupt::EXTI4);
+
         pac::NVIC::unpend(pac::Interrupt::TIM7);
         pac::NVIC::unmask(pac::Interrupt::TIM7);
     }
@@ -122,13 +143,31 @@ fn EXTI0() {
             clk.clear_interrupt();
 
             let dir = dt.is_high().unwrap_or(false);
-            let direction = if dir { Rotation::Left } else { Rotation::Right };
-            let new_note = update_note(direction);
+            let rotation = if dir { Rotation::Left } else { Rotation::Right };
+            // let new_note = update_note(direction);
 
-            let mut osc = OSCILLATOR.borrow(cs).borrow_mut();
-            if let (Some(osc), Some(note)) = (osc.as_mut(), new_note) {
-                osc.set_freq(midi_note_to_freq(note));
-            }
+            let mut state = STATE.borrow(cs).borrow_mut();
+            let encoder = ENCODER.borrow(cs).borrow();
+
+            state.adjust(&encoder.parameter, rotation);
+
+            // let mut osc = OSCILLATOR.borrow(cs).borrow_mut();
+            // if let (Some(osc), Some(note)) = (osc.as_mut(), new_note) {
+            //     osc.set_freq(midi_note_to_freq(note));
+            // }
+        }
+    });
+}
+
+#[interrupt]
+fn EXTI4() {
+    cortex_m::interrupt::free(|cs| {
+        let mut btn_pin = BTN_PIN.borrow(cs).borrow_mut();
+
+        if let Some(btn) = btn_pin.as_mut() {
+            btn.clear_interrupt();
+
+            ENCODER.borrow(cs).borrow_mut().next_param();
         }
     });
 }
@@ -149,17 +188,4 @@ fn TIM7() {
             dac.write_data(sample);
         }
     });
-}
-
-fn update_note(direction: Rotation) -> Option<u8> {
-    MIDI_NOTE
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-            let new = if direction == Rotation::Right {
-                current.saturating_add(1)
-            } else {
-                current.saturating_sub(1)
-            };
-            Some(new.clamp(0, (MIDI_NOTES_AMOUNT - 1) as u8))
-        })
-        .ok()
 }

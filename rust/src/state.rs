@@ -7,8 +7,8 @@ use crate::{
 };
 
 pub struct State {
-    midi_note: u8,
-    filter: Filter,
+    pub midi_note: u8,
+    pub filter: Filter,
 }
 
 impl State {
@@ -25,7 +25,7 @@ impl State {
         } else {
             self.midi_note.saturating_sub(1)
         };
-        new.clamp(0, (MIDI_NOTES_AMOUNT - 1) as u8);
+        // new.clamp(0, (MIDI_NOTES_AMOUNT - 1) as u8);
         self.midi_note = new;
         info!("Set MIDI note: {}", self.midi_note);
     }
@@ -42,18 +42,18 @@ impl State {
                 info!("Set filter cutoff: {}", self.filter.cutoff);
             }
             FilterParam::Resonance => {
-                if rotation == Rotation::Right {
-                    self.filter.resonance.saturating_add(1);
+                self.filter.resonance = if rotation == Rotation::Right {
+                    self.filter.resonance.saturating_add(1)
                 } else {
-                    self.filter.resonance.saturating_sub(1);
+                    self.filter.resonance.saturating_sub(1)
                 };
                 info!("Set filter resonance: {}", self.filter.resonance);
             }
             FilterParam::Gain => {
-                if rotation == Rotation::Right {
-                    self.filter.gain.saturating_add(1);
+                self.filter.gain = if rotation == Rotation::Right {
+                    self.filter.gain.saturating_add(1)
                 } else {
-                    self.filter.gain.saturating_sub(1);
+                    self.filter.gain.saturating_sub(1)
                 };
                 info!("Set filter gain: {}", self.filter.gain);
             }
