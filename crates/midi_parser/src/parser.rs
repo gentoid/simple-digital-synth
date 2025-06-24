@@ -47,37 +47,21 @@ impl MidiMessageKind {
         }
     }
 
-    pub fn process_data_byte(&mut self, byte: u8, bytes_counter: &u32) {
-        use MidiMessageKind::*;
-
+    pub fn bytes_requires(&self) -> usize {
         match self {
-            NoteOff(note, velocity) | NoteOn(note, velocity) | PolyphonicAT(note, velocity) => {
-                match bytes_counter % 2 {
-                    0 => *note = Note(byte),
-                    1 => *velocity = Velocity(byte),
-                    _ => unreachable!("'value % 2' cannot have more than 2 values"),
-                }
-            }
-            CC(cc_number, cc_value) => match bytes_counter % 2 {
-                0 => *cc_number = ControlNum(byte),
-                1 => *cc_value = ControlVal(byte),
-                _ => unreachable!("'value % 2' cannot have more than 2 values"),
-            },
-            ProgramChange(program) => *program = ProgramNumber(byte),
-            ChannelAT(velocity) => *velocity = Velocity(byte),
-            PithBend(bend_value) => match bytes_counter % 2 {
-                0 => *bend_value = PitchBendValue((bend_value.0 & 0x7F) | ((byte as u16) << 7)),
-                1 => *bend_value = PitchBendValue((bend_value.0 & 0xFF80) | byte as u16),
-                _ => unreachable!("'value % 2' cannot have more than 2 values"),
-            },
-            SysEx => {
-                // info!("SysEx MIDI data byte is ignored");
-            }
+            Self::NoteOff(_, _) => 2,
+            Self::NoteOn(_, _) => 2,
+            Self::PolyphonicAT(_, _) => 2,
+            Self::CC(_, _) => 2,
+            Self::ProgramChange(_) => 1,
+            Self::ChannelAT(_) => 1,
+            Self::PithBend(_) => 2,
+            Self::SysEx => 0,
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum MidiChannel {
     Ch1,
     Ch2,
@@ -123,33 +107,94 @@ impl MidiChannel {
     }
 }
 
+#[derive(Debug)]
 pub struct RunningStatus {
     message_kind: Option<MidiMessageKind>,
+    message_reading: Option<MidiMessageKind>,
     midi_channel: MidiChannel,
-    bytes_counter: u32,
+    data_buffer: Vec<u8>,
+    bytes_to_read: usize,
 }
 
 impl RunningStatus {
     pub fn new(midi_channel: MidiChannel) -> Self {
+        let mut data_buffer = vec![];
+        data_buffer.reserve(2);
+
         Self {
             message_kind: None,
+            message_reading: None,
             midi_channel,
-            bytes_counter: 0,
+            data_buffer,
+            bytes_to_read: 0,
         }
     }
 
     pub fn process_midi_byte(&mut self, byte: u8) {
-        if byte & 0x80 == 0x80 {
-            self.midi_channel = MidiChannel::from_byte(&byte);
-            self.message_kind = Some(MidiMessageKind::from_byte(&byte));
-            self.bytes_counter = 0;
+        // Is it a data byte?
+        if byte & 0x80 != 0x80 {
+            self.process_data_byte(byte);
             return;
         }
 
-        if let Some(kind) = self.message_kind.as_mut() {
-            kind.process_data_byte(byte, &self.bytes_counter);
-            self.bytes_counter += 1;
+        if MidiChannel::from_byte(&byte) != self.midi_channel {
+            return;
         }
+
+        let msg_kind = MidiMessageKind::from_byte(&byte);
+        self.bytes_to_read = msg_kind.bytes_requires();
+        self.message_reading = Some(msg_kind);
+    }
+
+    fn process_data_byte(&mut self, byte: u8) {
+        use MidiMessageKind::*;
+
+        if self
+            .message_reading
+            .as_ref()
+            .or(self.message_kind.as_ref())
+            .is_none()
+        {
+            return;
+        }
+
+        self.data_buffer.push(byte);
+
+        if self.bytes_to_read > self.data_buffer.len() {
+            return;
+        }
+
+        match self
+            .message_reading
+            .as_mut()
+            .or_else(|| self.message_kind.as_mut())
+            .unwrap()
+        {
+            NoteOff(note, velocity) | NoteOn(note, velocity) | PolyphonicAT(note, velocity) => {
+                *note = Note(self.data_buffer[0]);
+                *velocity = Velocity(self.data_buffer[1]);
+            }
+            CC(cc_number, cc_value) => {
+                *cc_number = ControlNum(self.data_buffer[0]);
+                *cc_value = ControlVal(self.data_buffer[1]);
+            }
+            ProgramChange(program) => *program = ProgramNumber(self.data_buffer[0]),
+            ChannelAT(velocity) => *velocity = Velocity(self.data_buffer[0]),
+            PithBend(bend_value) => {
+                let value = (self.data_buffer[0] as u16) | ((self.data_buffer[1] as u16) << 7);
+                *bend_value = PitchBendValue(value);
+            }
+            SysEx => {
+                // info!("SysEx MIDI data byte is ignored");
+            }
+        }
+
+        if self.message_reading.is_some() {
+            self.message_kind = self.message_reading.take();
+        }
+
+        self.data_buffer.clear();
+        return;
     }
 }
 
@@ -211,16 +256,80 @@ pub const fn midi_note_to_freq(note: u8) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use MidiMessageKind::*;
 
     #[test]
-    fn parse_midi_messages() {
-        let mut rs = RunningStatus::new(MidiChannel::Ch2);
+    fn parser_ignores_messages_for_another_channels() {
+        let ch = MidiChannel::Ch2;
+        let mut rs = RunningStatus::new(ch);
+
         rs.process_midi_byte(0x80);
-        assert_eq!(rs.midi_channel, MidiChannel::Ch2);
-        assert_eq!(rs.bytes_counter, 1);
-        assert_eq!(
-            rs.message_kind,
-            Some(MidiMessageKind::NoteOn(Note(69), Velocity(127)))
-        );
+        assert_status_is_init(&rs, ch);
+
+        rs.process_midi_byte(0x82);
+        assert_status_is_init(&rs, ch);
+
+        rs.process_midi_byte(0x93);
+        assert_status_is_init(&rs, ch);
+
+        rs.process_midi_byte(0xA4);
+        assert_status_is_init(&rs, ch);
+
+        rs.process_midi_byte(0xB5);
+        assert_status_is_init(&rs, ch);
+
+        rs.process_midi_byte(0xC6);
+        assert_status_is_init(&rs, ch);
+
+        rs.process_midi_byte(0xD7);
+        assert_status_is_init(&rs, ch);
+
+        rs.process_midi_byte(0xE8);
+        assert_status_is_init(&rs, ch);
+
+        rs.process_midi_byte(0xFF);
+        assert_status_is_init(&rs, ch);
+    }
+
+    fn assert_status_is_init(rs: &RunningStatus, channel: MidiChannel) {
+        assert_eq!(rs.midi_channel, channel);
+        assert_eq!(rs.bytes_to_read, 0);
+        assert_eq!(rs.message_kind, None);
+    }
+
+    #[test]
+    fn note_on() {
+        let ch = MidiChannel::Ch11;
+        let mut rs = RunningStatus::new(ch);
+
+        rs.process_midi_byte(0x9A);
+        assert_eq!(rs.message_kind, None);
+        rs.process_midi_byte(0x73);
+        rs.process_midi_byte(0x48);
+        assert_eq!(rs.message_kind, Some(NoteOn(Note(115), Velocity(72))));
+    }
+
+    #[test]
+    fn running_status() {
+        let ch = MidiChannel::Ch5;
+        let mut rs = RunningStatus::new(ch);
+
+        rs.process_midi_byte(0x94);
+        assert_eq!(rs.message_kind, None);
+        
+        rs.process_midi_byte(0x73);
+        rs.process_midi_byte(0x48);
+        assert_eq!(rs.message_kind, Some(NoteOn(Note(115), Velocity(72))));
+        
+        rs.process_midi_byte(0x39);
+        rs.process_midi_byte(0x77);
+        assert_eq!(rs.message_kind, Some(NoteOn(Note(57), Velocity(119))));
+        
+        rs.process_midi_byte(0x53);
+        // it keeps previous message kind until all required data received
+        assert_eq!(rs.message_kind, Some(NoteOn(Note(57), Velocity(119))));
+        rs.process_midi_byte(0x0F);
+        // println!("{rs:?}");
+        assert_eq!(rs.message_kind, Some(NoteOn(Note(83), Velocity(15))));
     }
 }
