@@ -1,5 +1,6 @@
 {
     "mcu-debug.debug-tracker-vscode.debugLevel": 1,
     "mcu-debug.peripheral-viewer.debugLevel": 1,
-    "rust-analyzer.cargo.target": "thumbv7em-none-eabihf"
+    "rust-analyzer.restartServerOnConfigChange": true,
+    "rust-analyzer.assist.preferSelf": true
 }

@@ -7,5 +7,5 @@ edition = "2024"
 panic-probe = { version = "1.0", features = ["print-defmt"]}
 
 [features]
-default = []
+default = ["std"]
 std = []
