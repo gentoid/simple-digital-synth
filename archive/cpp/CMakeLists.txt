@@ -15,7 +15,7 @@ set(SOURCES
         src/stm32/stm32_def.c
         src/stm32/system_stm32f3xx.c
 #        src/stm32/stm32f3xx_hal_timebase_tim.c
-        ../stm32/startup_stm32f303xc.s
+        ../../stm32/startup_stm32f303xc.s
 )
 
 SET(CUSTOM_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/../Arduino_Core_STM32-main/system")

@@ -12,19 +12,10 @@ libm = "0.2.15"
 defmt = "1.0"
 defmt-rtt = "1.0"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
-
-[profile.dev]
-codegen-units = 1
-debug = true
-lto = false
-opt-level = 0
-
-[profile.release]
-codegen-units = 1
-debug = false
-lto = true
-opt-level = "z"
+midi_parser = { path = "../midi_parser" }
 
 [[bin]]
 name = "main"
 path = "src/main.rs"
+harness = false
+test = false

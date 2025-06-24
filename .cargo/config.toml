@@ -2,7 +2,9 @@
 target = "thumbv7em-none-eabihf"
 
 [target.thumbv7em-none-eabihf]
-runner = "powershell -ExecutionPolicy Bypass -File ../stm32/flash.ps1"
+# runner = "powershell -ExecutionPolicy Bypass -File ../stm32/flash.ps1"
+# runner = "arm-none-eabi-gdb"
+runner = "probe-rs run"
 # Can be replaced with "probe-rs", "stm32flash", "dfu-util" or even with own "flash.sh"
 
 rustflags = [

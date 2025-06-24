@@ -2,11 +2,11 @@ use core::f32::consts::TAU;
 
 use defmt::{Format, info};
 use libm::sinf;
+use midi_parser::{consts::MIDI_NOTES_AMOUNT, parser::midi_note_to_freq};
 
 use crate::{
-    consts::{MAX_DAC_VALUE, MIDI_NOTES_AMOUNT, SAMPLE_RATE},
+    consts::{MAX_DAC_VALUE, SAMPLE_RATE},
     encoder::Rotation,
-    midi::midi_note_to_freq,
 };
 
 #[derive(Format)]
@@ -106,7 +106,7 @@ impl Oscillator {
 
     pub fn set_note(&mut self, midi_note: u8) {
         info!("Set MIDI note: {}", midi_note);
-        self.midi_note = midi_note.clamp(0, (MIDI_NOTES_AMOUNT - 1) as u8);;
+        self.midi_note = midi_note.clamp(0, (MIDI_NOTES_AMOUNT - 1) as u8);
         self.freq = midi_note_to_freq(midi_note);
         self.update_phase_inc();
     }
