@@ -1,0 +1,2 @@
+[alias]
+test-std = "test --features std --target x86_64-pc-windows-msvc"

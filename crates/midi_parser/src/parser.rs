@@ -210,6 +210,7 @@ pub const fn midi_note_to_freq(note: u8) -> f32 {
 #[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
     fn parse_midi_messages() {
