@@ -4,10 +4,10 @@ use heapless::Vec;
 use crate::tables::MIDI_FREQS;
 
 #[derive(Debug, PartialEq)]
-pub struct Note(u8);
+pub struct Note(pub u8);
 
 #[derive(Debug, PartialEq)]
-pub struct Velocity(u8);
+pub struct Velocity(pub u8);
 
 #[derive(Debug, PartialEq)]
 pub struct ControlNum(u8);
@@ -133,6 +133,10 @@ impl RunningStatus {
         }
     }
 
+    pub fn message_kind(&self) -> &Option<MidiMessageKind> {
+        &self.message_kind
+    }
+
     pub fn process_midi_byte(&mut self, byte: u8) {
         // Is it a data byte?
         if byte & 0x80 != 0x80 {
@@ -163,7 +167,7 @@ impl RunningStatus {
 
         #[cfg(feature = "std")]
         self.data_buffer.push(byte);
-        
+
         #[cfg(not(feature = "std"))]
         // todo do proper "unwrap"
         self.data_buffer.push(byte).unwrap();

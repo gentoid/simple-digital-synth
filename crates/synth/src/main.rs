@@ -7,8 +7,16 @@ use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
+use midi_parser::parser::{MidiChannel, MidiMessageKind, RunningStatus};
 use panic_probe as _;
-use stm32f3xx_hal::{dac::Dac, gpio, interrupt, pac, prelude::*};
+use stm32f3xx_hal::{
+    dac::Dac,
+    gpio::{self, AF7, PA9, PA10, PushPull},
+    interrupt, nb,
+    pac::{self, USART1},
+    prelude::*,
+    serial::{self, Event, Serial, config::Config},
+};
 
 pub mod consts;
 pub mod encoder;
@@ -25,6 +33,13 @@ static DT_PIN: Mutex<RefCell<Option<gpio::PB1<gpio::Input>>>> = Mutex::new(RefCe
 static BTN_PIN: Mutex<RefCell<Option<gpio::PB4<gpio::Input>>>> = Mutex::new(RefCell::new(None));
 static DAC_HANDLE: Mutex<RefCell<Option<Dac>>> = Mutex::new(RefCell::new(None));
 // static TIM7_HANDLE: Mutex<RefCell<Option<Timer<pac::TIM7>>>> = Mutex::new(RefCell::new(None));
+
+// MIDI
+
+static UART: Mutex<RefCell<Option<Serial<USART1, (PA9<AF7<PushPull>>, PA10<AF7<PushPull>>)>>>> =
+    Mutex::new(RefCell::new(None));
+
+static MIDI: Mutex<RefCell<Option<RunningStatus>>> = Mutex::new(RefCell::new(None));
 
 static ENCODER: Mutex<RefCell<crate::encoder::Encoder>> =
     Mutex::new(RefCell::new(crate::encoder::Encoder::new()));
@@ -52,10 +67,32 @@ fn main() -> ! {
     let mut rcc = rcc_regs.constrain();
 
     let mut flash = dp.FLASH.constrain();
-    let _clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
+    let clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
     let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
+
+    // MINI input
+
+    let midi_tx =
+        gpioa
+            .pa9
+            .into_af_push_pull::<7>(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
+    let midi_rx =
+        gpioa
+            .pa10
+            .into_af_push_pull::<7>(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrh);
+
+    let mut serial = Serial::new(
+        dp.USART1,
+        (midi_tx, midi_rx),
+        Config::default().baudrate(31_250.Bd()),
+        clocks,
+        &mut rcc.apb2,
+    );
+    serial.configure_interrupt(Event::ReceiveDataRegisterNotEmpty, true);
+
+    let parser = RunningStatus::new(MidiChannel::Ch1);
 
     // let mut timer = Timer::new(dp.TIM7, clocks, &mut rcc.apb1);
     // timer.configure_interrupt(stm32f3xx_hal::timer::Event::Update, true);
@@ -94,6 +131,10 @@ fn main() -> ! {
         DAC_HANDLE.borrow(cs).replace(Some(dac));
         BTN_PIN.borrow(cs).replace(Some(btn));
         // TIM7_HANDLE.borrow(cs).replace(Some(timer));
+
+        // MIDI
+        UART.borrow(cs).replace(Some(serial));
+        MIDI.borrow(cs).replace(Some(parser));
     });
 
     unsafe {
@@ -104,6 +145,9 @@ fn main() -> ! {
 
         pac::NVIC::unpend(pac::Interrupt::TIM7);
         pac::NVIC::unmask(pac::Interrupt::TIM7);
+
+        // MIDI
+        pac::NVIC::unmask(pac::Interrupt::USART1_EXTI25);
     }
 
     tim7.dier.modify(|_, w| w.uie().set_bit());
@@ -163,6 +207,52 @@ fn TIM7() {
             let filtered = state.filter.process(sample);
             let as_u16 = (filtered as u16).clamp(0, MAX_DAC_VALUE);
             dac.write_data(as_u16);
+        }
+    });
+}
+
+// MIDI
+#[interrupt]
+fn USART1_EXTI25() {
+    cortex_m::interrupt::free(|cs| {
+        if let (Some(uart), Some(midi)) = (
+            UART.borrow(cs).borrow_mut().as_mut(),
+            MIDI.borrow(cs).borrow_mut().as_mut(),
+        ) {
+            match uart.read() {
+                Ok(byte) => {
+                    midi.process_midi_byte(byte);
+
+                    if midi.message_kind().is_none() {
+                        return;
+                    }
+
+                    use MidiMessageKind::*;
+
+                    match midi.message_kind().as_ref().unwrap() {
+                        NoteOn(note, velocity) if velocity.0 > 0 => {
+                            info!(
+                                "Received to start note: {} with velocity: {}",
+                                note.0, velocity.0
+                            );
+                        }
+                        NoteOff(note, _) | NoteOn(note, _) => {
+                            info!("Received to top note: {}", note.0)
+                        }
+                        _ => {}
+                    }
+                }
+                Err(err) => match err {
+                    nb::Error::Other(err) => match err {
+                        serial::Error::Framing => warn!("Error: Framing"),
+                        serial::Error::Noise => warn!("Error: Noise"),
+                        serial::Error::Overrun => warn!("Error: Overrun"),
+                        serial::Error::Parity => warn!("Error: Parity"),
+                        _ => warn!("Error: unknown"),
+                    },
+                    nb::Error::WouldBlock => warn!("Would block"),
+                },
+            }
         }
     });
 }
