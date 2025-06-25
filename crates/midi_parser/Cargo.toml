@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+heapless = "0.8"
 panic-probe = { version = "1.0", features = ["print-defmt"]}
 
 [features]

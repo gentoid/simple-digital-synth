@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use heapless::Vec;
+
 use crate::tables::MIDI_FREQS;
 
 #[derive(Debug, PartialEq)]
@@ -112,20 +115,20 @@ pub struct RunningStatus {
     message_kind: Option<MidiMessageKind>,
     message_reading: Option<MidiMessageKind>,
     midi_channel: MidiChannel,
+    #[cfg(feature = "std")]
     data_buffer: Vec<u8>,
+    #[cfg(not(feature = "std"))]
+    data_buffer: Vec<u8, 3>,
     bytes_to_read: usize,
 }
 
 impl RunningStatus {
     pub fn new(midi_channel: MidiChannel) -> Self {
-        let mut data_buffer = vec![];
-        data_buffer.reserve(2);
-
         Self {
             message_kind: None,
             message_reading: None,
             midi_channel,
-            data_buffer,
+            data_buffer: Vec::new(),
             bytes_to_read: 0,
         }
     }
@@ -158,7 +161,12 @@ impl RunningStatus {
             return;
         }
 
+        #[cfg(feature = "std")]
         self.data_buffer.push(byte);
+        
+        #[cfg(not(feature = "std"))]
+        // todo do proper "unwrap"
+        self.data_buffer.push(byte).unwrap();
 
         if self.bytes_to_read > self.data_buffer.len() {
             return;
@@ -316,15 +324,15 @@ mod tests {
 
         rs.process_midi_byte(0x94);
         assert_eq!(rs.message_kind, None);
-        
+
         rs.process_midi_byte(0x73);
         rs.process_midi_byte(0x48);
         assert_eq!(rs.message_kind, Some(NoteOn(Note(115), Velocity(72))));
-        
+
         rs.process_midi_byte(0x39);
         rs.process_midi_byte(0x77);
         assert_eq!(rs.message_kind, Some(NoteOn(Note(57), Velocity(119))));
-        
+
         rs.process_midi_byte(0x53);
         // it keeps previous message kind until all required data received
         assert_eq!(rs.message_kind, Some(NoteOn(Note(57), Velocity(119))));
