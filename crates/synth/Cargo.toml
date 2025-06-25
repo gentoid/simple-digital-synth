@@ -12,7 +12,7 @@ libm = "0.2.15"
 defmt = "1.0"
 defmt-rtt = "1.0"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
-midi_parser = { path = "../midi_parser" }
+midi_parser = { path = "../midi_parser", default-features = false }
 
 [[bin]]
 name = "main"
