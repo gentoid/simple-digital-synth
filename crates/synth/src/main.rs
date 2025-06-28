@@ -221,6 +221,7 @@ fn USART1_EXTI25() {
         ) {
             match uart.read() {
                 Ok(byte) => {
+                    debug!(" == Byte: 0x{:02X} | 0b{:08b}", byte, byte);
                     midi.process_midi_byte(byte);
 
                     if midi.message_kind().is_none() {
@@ -235,13 +236,10 @@ fn USART1_EXTI25() {
 
                     match midi.message_kind().as_ref().unwrap() {
                         NoteOn(note, velocity) if velocity.0 > 0 => {
-                            info!(
-                                "Received to start note: {} with velocity: {}",
-                                note.0, velocity.0
-                            );
+                            info!("Start note: {} with velocity: {}", note.0, velocity.0);
                         }
-                        NoteOff(note, _) | NoteOn(note, _) => {
-                            info!("Received to top note: {}", note.0)
+                        NoteOff(note, velocity) | NoteOn(note, velocity) => {
+                            info!("Stop note: {} with velocity: {}", note.0, velocity.0)
                         }
                         _ => {}
                     }
