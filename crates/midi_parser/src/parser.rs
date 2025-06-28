@@ -123,7 +123,7 @@ pub struct RunningStatus {
 }
 
 impl RunningStatus {
-    pub fn new(midi_channel: MidiChannel) -> Self {
+    pub const fn new(midi_channel: MidiChannel) -> Self {
         Self {
             message_kind: None,
             message_reading: None,

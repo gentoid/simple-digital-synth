@@ -7,7 +7,6 @@ use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
-use midi_parser::parser::{MidiChannel, MidiMessageKind, RunningStatus};
 use panic_probe as _;
 use stm32f3xx_hal::{
     dac::Dac,
@@ -18,6 +17,7 @@ use stm32f3xx_hal::{
     serial::{self, Event, Serial, config::Config},
 };
 
+pub mod adsr;
 pub mod consts;
 pub mod encoder;
 pub mod filter;
@@ -38,8 +38,6 @@ static DAC_HANDLE: Mutex<RefCell<Option<Dac>>> = Mutex::new(RefCell::new(None));
 
 static UART: Mutex<RefCell<Option<Serial<USART1, (PA9<AF7<PushPull>>, PA10<AF7<PushPull>>)>>>> =
     Mutex::new(RefCell::new(None));
-
-static MIDI: Mutex<RefCell<Option<RunningStatus>>> = Mutex::new(RefCell::new(None));
 
 static ENCODER: Mutex<RefCell<crate::encoder::Encoder>> =
     Mutex::new(RefCell::new(crate::encoder::Encoder::new()));
@@ -92,8 +90,6 @@ fn main() -> ! {
     );
     serial.configure_interrupt(Event::ReceiveDataRegisterNotEmpty, true);
 
-    let parser = RunningStatus::new(MidiChannel::Ch1);
-
     // let mut timer = Timer::new(dp.TIM7, clocks, &mut rcc.apb1);
     // timer.configure_interrupt(stm32f3xx_hal::timer::Event::Update, true);
     // timer.enable_interrupt(stm32f3xx_hal::timer::Event::Update);
@@ -134,7 +130,6 @@ fn main() -> ! {
 
         // MIDI
         UART.borrow(cs).replace(Some(serial));
-        MIDI.borrow(cs).replace(Some(parser));
     });
 
     unsafe {
@@ -203,7 +198,7 @@ fn TIM7() {
         let mut state = STATE.borrow(cs).borrow_mut();
 
         if let Some(dac) = dac.as_mut() {
-            let sample = state.oscillator.next_sample();
+            let sample = state.next_sample();
             let filtered = state.filter.process(sample);
             let as_u16 = (filtered as u16).clamp(0, MAX_DAC_VALUE);
             dac.write_data(as_u16);
@@ -215,34 +210,12 @@ fn TIM7() {
 #[interrupt]
 fn USART1_EXTI25() {
     cortex_m::interrupt::free(|cs| {
-        if let (Some(uart), Some(midi)) = (
-            UART.borrow(cs).borrow_mut().as_mut(),
-            MIDI.borrow(cs).borrow_mut().as_mut(),
-        ) {
+        if let Some(uart) = UART.borrow(cs).borrow_mut().as_mut() {
             match uart.read() {
                 Ok(byte) => {
+                    let mut state = STATE.borrow(cs).borrow_mut();
                     debug!(" == Byte: 0x{:02X} | 0b{:08b}", byte, byte);
-                    midi.process_midi_byte(byte);
-
-                    if midi.message_kind().is_none() {
-                        return;
-                    }
-
-                    if midi.in_progress() {
-                        return;
-                    }
-
-                    use MidiMessageKind::*;
-
-                    match midi.message_kind().as_ref().unwrap() {
-                        NoteOn(note, velocity) if velocity.0 > 0 => {
-                            info!("Start note: {} with velocity: {}", note.0, velocity.0);
-                        }
-                        NoteOff(note, velocity) | NoteOn(note, velocity) => {
-                            info!("Stop note: {} with velocity: {}", note.0, velocity.0)
-                        }
-                        _ => {}
-                    }
+                    state.process_midi_byte(byte);
                 }
                 Err(err) => match err {
                     nb::Error::Other(err) => match err {
