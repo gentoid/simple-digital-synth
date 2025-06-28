@@ -227,6 +227,10 @@ fn USART1_EXTI25() {
                         return;
                     }
 
+                    if midi.in_progress() {
+                        return;
+                    }
+
                     use MidiMessageKind::*;
 
                     match midi.message_kind().as_ref().unwrap() {

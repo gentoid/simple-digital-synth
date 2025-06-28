@@ -137,6 +137,10 @@ impl RunningStatus {
         &self.message_kind
     }
 
+    pub fn in_progress(&self) -> bool {
+        self.message_reading.is_some()
+    }
+
     pub fn process_midi_byte(&mut self, byte: u8) {
         // Is it a data byte?
         if byte & 0x80 != 0x80 {
