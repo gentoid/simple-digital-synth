@@ -14,6 +14,7 @@ use stm32f3xx_hal::{
     interrupt, nb,
     pac::{self, USART1},
     prelude::*,
+    rcc,
     serial::{self, Event, Serial, config::Config},
 };
 
@@ -25,7 +26,11 @@ pub mod oscillator;
 pub mod state;
 pub mod voice;
 
-use crate::{consts::MAX_DAC_VALUE, encoder::Rotation, state::State};
+use crate::{
+    consts::{MAX_DAC_VALUE, SAMPLE_RATE},
+    encoder::Rotation,
+    state::State,
+};
 
 // for Encoder
 
@@ -33,7 +38,6 @@ static CLK_PIN: Mutex<RefCell<Option<gpio::PB0<gpio::Input>>>> = Mutex::new(RefC
 static DT_PIN: Mutex<RefCell<Option<gpio::PB1<gpio::Input>>>> = Mutex::new(RefCell::new(None));
 static BTN_PIN: Mutex<RefCell<Option<gpio::PB4<gpio::Input>>>> = Mutex::new(RefCell::new(None));
 static DAC_HANDLE: Mutex<RefCell<Option<Dac>>> = Mutex::new(RefCell::new(None));
-// static TIM7_HANDLE: Mutex<RefCell<Option<Timer<pac::TIM7>>>> = Mutex::new(RefCell::new(None));
 
 // MIDI
 
@@ -49,29 +53,16 @@ static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State::new()));
 fn main() -> ! {
     info!("Starting the app");
     let mut dp = pac::Peripherals::take().unwrap();
-
-    let rcc_regs = dp.RCC;
-
-    rcc_regs.apb1enr.modify(|_, w| w.tim7en().set_bit());
-
-    let tim7 = &dp.TIM7;
-    tim7.cr1.modify(|_, w| {
-        w.cen().clear_bit();
-        w.udis().clear_bit()
-    });
-    // tim7.psc.write(|w| w.psc().bits(0));
-    // tim7.arr.write(|w| w.arr().bits(332));
-    tim7.egr.write(|w| w.ug().set_bit());
-
-    let mut rcc = rcc_regs.constrain();
+    let mut rcc = dp.RCC.constrain();
 
     let mut flash = dp.FLASH.constrain();
     let clocks = rcc.cfgr.sysclk(64.MHz()).freeze(&mut flash.acr);
+
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
 
     let _pa4 = gpioa.pa4.into_analog(&mut gpioa.moder, &mut gpioa.pupdr);
 
-    // MINI input
+    // MIDI input
 
     let midi_tx =
         gpioa
@@ -90,11 +81,6 @@ fn main() -> ! {
         &mut rcc.apb2,
     );
     serial.configure_interrupt(Event::ReceiveDataRegisterNotEmpty, true);
-
-    // let mut timer = Timer::new(dp.TIM7, clocks, &mut rcc.apb1);
-    // timer.configure_interrupt(stm32f3xx_hal::timer::Event::Update, true);
-    // timer.enable_interrupt(stm32f3xx_hal::timer::Event::Update);
-    // timer.start(Nanoseconds(1_000_000_000u32 / SAMPLE_RATE as u32));
 
     // // Encoder
 
@@ -127,7 +113,6 @@ fn main() -> ! {
         DT_PIN.borrow(cs).replace(Some(dt));
         DAC_HANDLE.borrow(cs).replace(Some(dac));
         BTN_PIN.borrow(cs).replace(Some(btn));
-        // TIM7_HANDLE.borrow(cs).replace(Some(timer));
 
         // MIDI
         UART.borrow(cs).replace(Some(serial));
@@ -139,15 +124,11 @@ fn main() -> ! {
         pac::NVIC::unpend(pac::Interrupt::EXTI4);
         pac::NVIC::unmask(pac::Interrupt::EXTI4);
 
-        pac::NVIC::unpend(pac::Interrupt::TIM7);
-        pac::NVIC::unmask(pac::Interrupt::TIM7);
-
         // MIDI
         pac::NVIC::unmask(pac::Interrupt::USART1_EXTI25);
     }
 
-    tim7.dier.modify(|_, w| w.uie().set_bit());
-    tim7.cr1.modify(|_, w| w.cen().set_bit());
+    setup_tim7(&dp.TIM7, &clocks);
 
     loop {
         cortex_m::asm::wfi();
@@ -187,21 +168,53 @@ fn EXTI4() {
     });
 }
 
+fn setup_tim7(tim: &pac::TIM7, clocks: &rcc::Clocks) {
+    // Enable tim7
+    let rcc = unsafe { &*pac::RCC::ptr() };
+    rcc.apb1enr.modify(|_, w| w.tim7en().set_bit());
+
+    let pclk = clocks.pclk1().0;
+
+    let target_freq = SAMPLE_RATE as u32;
+    let mut psc = 0;
+    let mut arr = pclk / target_freq;
+
+    while arr > 65535 {
+        psc += 1;
+        arr = pclk / (target_freq * (psc + 1));
+    }
+
+    // Turn it off before setting up
+    tim.cr1.modify(|_, w| w.cen().clear_bit());
+
+    tim.psc.write(|w| w.psc().bits(0));
+    tim.arr.write(|w| w.arr().bits((arr - 1) as u16));
+
+    tim.egr.write(|w| w.ug().set_bit());
+
+    tim.dier.write(|w| w.uie().set_bit());
+    tim.cr1.write(|w| w.cen().set_bit());
+
+    unsafe {
+        pac::NVIC::unmask(pac::Interrupt::TIM7);
+    }
+}
+
 #[interrupt]
 fn TIM7() {
-    cortex_m::interrupt::free(|cs| {
-        // let mut tim7 = TIM7_HANDLE.borrow(cs).borrow_mut();
-        // if let Some(tim) = tim7.as_mut() {
-        //     tim.clear_event(stm32f3xx_hal::timer::Event::Update);
-        // }
+    let dp = unsafe { pac::Peripherals::steal() };
+    let tim = &dp.TIM7;
+    tim.sr.modify(|_, w| w.uif().clear_bit());
 
+    cortex_m::interrupt::free(|cs| {
         let mut dac = DAC_HANDLE.borrow(cs).borrow_mut();
         let mut state = STATE.borrow(cs).borrow_mut();
 
         if let Some(dac) = dac.as_mut() {
             let sample = state.next_sample();
             let filtered = state.filter.process(sample);
-            let as_u16 = (((filtered + 1.0) * MAX_DAC_VALUE as f32 / 2.0) as u16).clamp(0, MAX_DAC_VALUE);
+            let as_u16 =
+                (((filtered + 1.0) * MAX_DAC_VALUE as f32 / 2.0) as u16).clamp(0, MAX_DAC_VALUE);
             dac.write_data(as_u16);
         }
     });
