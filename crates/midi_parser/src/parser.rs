@@ -3,8 +3,26 @@ use heapless::Vec;
 
 use crate::tables::MIDI_FREQS;
 
-#[derive(Debug, PartialEq)]
-pub struct Note(pub u8);
+#[derive(Debug, Clone)]
+pub struct Note {
+    pub num: u8,
+    pub freq: f32,
+}
+
+impl Note {
+    pub fn new(num: u8) -> Self {
+        Self {
+            num,
+            freq: midi_note_to_freq(num),
+        }
+    }
+}
+
+impl PartialEq for Note {
+    fn eq(&self, other: &Self) -> bool {
+        self.num == other.num
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Velocity(pub u8);
@@ -38,9 +56,9 @@ impl MidiMessageKind {
         use MidiMessageKind::*;
 
         match byte & 0xF0 {
-            0x80 => NoteOff(Note(0), Velocity(0)),
-            0x90 => NoteOn(Note(0), Velocity(0)),
-            0xA0 => PolyphonicAT(Note(0), Velocity(0)),
+            0x80 => NoteOff(Note::new(0), Velocity(0)),
+            0x90 => NoteOn(Note::new(0), Velocity(0)),
+            0xA0 => PolyphonicAT(Note::new(0), Velocity(0)),
             0xB0 => CC(ControlNum(0), ControlVal(0)),
             0xC0 => ProgramChange(ProgramNumber(0)),
             0xD0 => ChannelAT(Velocity(0)),
@@ -187,7 +205,7 @@ impl RunningStatus {
             .unwrap()
         {
             NoteOff(note, velocity) | NoteOn(note, velocity) | PolyphonicAT(note, velocity) => {
-                *note = Note(self.data_buffer[0]);
+                *note = Note::new(self.data_buffer[0]);
                 *velocity = Velocity(self.data_buffer[1]);
             }
             CC(cc_number, cc_value) => {
@@ -322,7 +340,7 @@ mod tests {
         assert_eq!(rs.message_kind, None);
         rs.process_midi_byte(0x73);
         rs.process_midi_byte(0x48);
-        assert_eq!(rs.message_kind, Some(NoteOn(Note(115), Velocity(72))));
+        assert_eq!(rs.message_kind, Some(NoteOn(Note::new(115), Velocity(72))));
     }
 
     #[test]
@@ -335,17 +353,17 @@ mod tests {
 
         rs.process_midi_byte(0x73);
         rs.process_midi_byte(0x48);
-        assert_eq!(rs.message_kind, Some(NoteOn(Note(115), Velocity(72))));
+        assert_eq!(rs.message_kind, Some(NoteOn(Note::new(115), Velocity(72))));
 
         rs.process_midi_byte(0x39);
         rs.process_midi_byte(0x77);
-        assert_eq!(rs.message_kind, Some(NoteOn(Note(57), Velocity(119))));
+        assert_eq!(rs.message_kind, Some(NoteOn(Note::new(57), Velocity(119))));
 
         rs.process_midi_byte(0x53);
         // it keeps previous message kind until all required data received
-        assert_eq!(rs.message_kind, Some(NoteOn(Note(57), Velocity(119))));
+        assert_eq!(rs.message_kind, Some(NoteOn(Note::new(57), Velocity(119))));
         rs.process_midi_byte(0x0F);
         // println!("{rs:?}");
-        assert_eq!(rs.message_kind, Some(NoteOn(Note(83), Velocity(15))));
+        assert_eq!(rs.message_kind, Some(NoteOn(Note::new(83), Velocity(15))));
     }
 }

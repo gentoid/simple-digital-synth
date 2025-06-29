@@ -23,6 +23,7 @@ pub mod encoder;
 pub mod filter;
 pub mod oscillator;
 pub mod state;
+pub mod voice;
 
 use crate::{consts::MAX_DAC_VALUE, encoder::Rotation, state::State};
 

@@ -13,6 +13,7 @@ defmt = "1.0"
 defmt-rtt = "1.0"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
 midi_parser = { path = "../midi_parser", default-features = false }
+heapless = "0.8.0"
 
 [[bin]]
 name = "main"

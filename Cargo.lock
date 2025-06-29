@@ -451,6 +451,7 @@ dependencies = [
  "cortex-m-rt",
  "defmt",
  "defmt-rtt",
+ "heapless",
  "libm",
  "midi_parser",
  "panic-probe",

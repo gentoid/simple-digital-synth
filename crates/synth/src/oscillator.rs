@@ -2,7 +2,7 @@ use core::f32::consts::TAU;
 
 use defmt::{Format, info};
 use libm::sinf;
-use midi_parser::{consts::MIDI_NOTES_AMOUNT, parser::midi_note_to_freq};
+use midi_parser::parser::Note;
 
 use crate::{
     consts::{MAX_DAC_VALUE, SAMPLE_RATE},
@@ -20,7 +20,6 @@ pub enum WaveType {
 #[derive(Debug, Format)]
 pub enum OscParams {
     NextWave,
-    MidiNote,
     Duty,
 }
 
@@ -33,8 +32,7 @@ impl OscParams {
         use OscParams::*;
 
         match param {
-            NextWave => Some(MidiNote),
-            MidiNote => Some(Duty),
+            NextWave => Some(Duty),
             Duty => None,
         }
     }
@@ -42,25 +40,24 @@ impl OscParams {
 
 pub struct Oscillator {
     pub osc_type: WaveType,
-    pub freq: f32,
-    pub midi_note: u8,
+    pub note: Note,
     pub phase: f32,
     pub sample_rate: f32,
     pub phase_inc: f32,
     pub duty: f32,
+    active: bool,
 }
 
 impl Oscillator {
-    pub const fn new() -> Self {
-        let midi_note = 69;
+    pub const fn new(note: Note) -> Self {
         let mut this = Self {
             osc_type: WaveType::SawTooth,
-            freq: midi_note_to_freq(midi_note),
-            midi_note,
+            note,
             phase: 0.0,
             sample_rate: SAMPLE_RATE,
             phase_inc: 0.0,
             duty: 0.5,
+            active: false,
         };
 
         this.update_phase_inc();
@@ -68,6 +65,18 @@ impl Oscillator {
         this
     }
 
+    pub fn start(&mut self) {
+        self.active = true;
+        self.phase = 0.0;
+    }
+
+    pub fn stop(&mut self) {
+        self.active = false;
+    }
+
+    pub fn is_active(&self) -> bool {
+        return self.active
+    }
     pub fn adjust(&mut self, param: &OscParams, rotation: Rotation) {
         use OscParams::*;
 
@@ -83,14 +92,6 @@ impl Oscillator {
                 };
                 info!("Set osc type: {}", self.osc_type);
             }
-            MidiNote => {
-                let new = if rotation == Rotation::Right {
-                    self.midi_note.saturating_add(1)
-                } else {
-                    self.midi_note.saturating_sub(1)
-                };
-                self.set_note(new);
-            }
             Duty => {
                 let new = if rotation == Rotation::Right {
                     self.duty + 0.05
@@ -104,14 +105,11 @@ impl Oscillator {
         }
     }
 
-    pub fn set_note(&mut self, midi_note: u8) {
-        info!("Set MIDI note: {}", midi_note);
-        self.midi_note = midi_note.clamp(0, (MIDI_NOTES_AMOUNT - 1) as u8);
-        self.freq = midi_note_to_freq(midi_note);
-        self.update_phase_inc();
-    }
-
     pub fn next_sample(&mut self) -> f32 {
+        if !self.active {
+            return 0.0;
+        }
+
         let sample = match self.osc_type {
             WaveType::Sine => (sinf(self.phase * TAU) + 1.0) / 2.0,
             WaveType::SawTooth => self.phase,
@@ -141,6 +139,6 @@ impl Oscillator {
     }
 
     const fn update_phase_inc(&mut self) {
-        self.phase_inc = self.freq / self.sample_rate;
+        self.phase_inc = self.note.freq / self.sample_rate;
     }
 }

@@ -1,6 +1,6 @@
 use defmt::{Format, info};
 
-use crate::{filter::FilterParam, oscillator::OscParams};
+use crate::filter::FilterParam;
 
 #[derive(PartialEq)]
 pub enum Rotation {
@@ -10,13 +10,13 @@ pub enum Rotation {
 
 #[derive(Debug, Format)]
 pub enum EncoderParam {
-    Osc(OscParams),
+    // Osc(OscParams),
     Filter(FilterParam),
 }
 
 impl EncoderParam {
     pub const fn init_param() -> Self {
-        EncoderParam::Osc(OscParams::NextWave)
+        EncoderParam::Filter(FilterParam::init_param())
     }
 }
 
@@ -33,13 +33,12 @@ impl Encoder {
     pub fn next_param(&mut self) {
         use EncoderParam::*;
 
-        self.parameter =
-            match &self.parameter {
-                Osc(param) => OscParams::next_param(param)
-                    .map_or_else(|| Filter(FilterParam::init_param()), Osc),
-                Filter(param) => FilterParam::next_param(param)
-                    .map_or_else(|| Osc(OscParams::init_param()), Filter),
-            };
+        self.parameter = match &self.parameter {
+            // Osc(param) => OscParams::next_param(param)
+            //     .map_or_else(|| Filter(FilterParam::init_param()), Osc),
+            Filter(param) => FilterParam::next_param(param)
+                .map_or_else(|| Filter(FilterParam::init_param()), Filter),
+        };
 
         info!("Next parameter is: {:?}", self.parameter);
     }

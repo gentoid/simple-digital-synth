@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct TimeMs(pub u16);
 
 impl TimeMs {
@@ -6,6 +7,7 @@ impl TimeMs {
     }
 }
 
+#[derive(Clone)]
 pub struct Adsr {
     pub attack: TimeMs,
     pub decay: TimeMs,
@@ -13,7 +15,7 @@ pub struct Adsr {
     pub release: TimeMs,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum Phase {
     Idle,
     Attack,
@@ -22,6 +24,7 @@ pub enum Phase {
     Release,
 }
 
+#[derive(Clone)]
 pub struct Envelope {
     config: Adsr,
     sample_rate: f32,

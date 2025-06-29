@@ -6,14 +6,13 @@ use crate::{
     consts::SAMPLE_RATE,
     encoder::{EncoderParam, Rotation},
     filter::Filter,
-    oscillator::Oscillator,
+    voice::VoicePool,
 };
 
 pub struct State {
     pub filter: Filter,
-    pub oscillator: Oscillator,
     pub parser: RunningStatus,
-    pub adsr_envelope: adsr::Envelope,
+    voice_pool: VoicePool,
 }
 
 impl State {
@@ -25,23 +24,24 @@ impl State {
             sustain_level: 0.8,
         };
 
+        let envelope = adsr::Envelope::new(config, SAMPLE_RATE);
+
         Self {
             filter: Filter::new(),
-            oscillator: Oscillator::new(),
             parser: RunningStatus::new(MidiChannel::Ch1),
-            adsr_envelope: adsr::Envelope::new(config, SAMPLE_RATE),
+            voice_pool: VoicePool::new(envelope),
         }
     }
 
     pub fn adjust(&mut self, param: &EncoderParam, rotation: Rotation) {
         match param {
-            EncoderParam::Osc(param) => self.oscillator.adjust(param, rotation),
+            // EncoderParam::Osc(param) => self.oscillator.adjust(param, rotation),
             EncoderParam::Filter(param) => self.filter.adjust(param, rotation),
         }
     }
 
     pub fn next_sample(&mut self) -> f32 {
-        self.oscillator.next_sample() * self.adsr_envelope.next()
+        self.voice_pool.next_sample()
     }
 
     pub fn process_midi_byte(&mut self, byte: u8) {
@@ -58,13 +58,12 @@ impl State {
 
         match self.parser.message_kind().as_ref().unwrap() {
             NoteOn(note, velocity) if velocity.0 > 0 => {
-                info!("Start note: {} with velocity: {}", note.0, velocity.0);
-                self.oscillator.set_note(note.0);
-                self.adsr_envelope.note_on();
+                info!("Start note: {} with velocity: {}", note.num, velocity.0);
+                self.voice_pool.on_note_on(note.clone());
             }
             NoteOff(note, velocity) | NoteOn(note, velocity) => {
-                info!("Stop note: {} with velocity: {}", note.0, velocity.0);
-                self.adsr_envelope.note_off();
+                info!("Stop note: {} with velocity: {}", note.num, velocity.0);
+                self.voice_pool.on_note_off(note);
             }
             _ => {}
         }

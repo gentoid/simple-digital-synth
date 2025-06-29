@@ -71,7 +71,7 @@ pub enum FilterParam {
 }
 
 impl FilterParam {
-    pub fn init_param() -> Self {
+    pub const fn init_param() -> Self {
         Self::Cutoff
     }
 
