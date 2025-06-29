@@ -4,10 +4,7 @@ use defmt::{Format, info};
 use libm::sinf;
 use midi_parser::parser::Note;
 
-use crate::{
-    consts::{MAX_DAC_VALUE, SAMPLE_RATE},
-    encoder::Rotation,
-};
+use crate::{consts::SAMPLE_RATE, encoder::Rotation};
 
 #[derive(Format)]
 pub enum WaveType {
@@ -75,8 +72,9 @@ impl Oscillator {
     }
 
     pub fn is_active(&self) -> bool {
-        return self.active
+        return self.active;
     }
+
     pub fn adjust(&mut self, param: &OscParams, rotation: Rotation) {
         use OscParams::*;
 
@@ -111,20 +109,20 @@ impl Oscillator {
         }
 
         let sample = match self.osc_type {
-            WaveType::Sine => (sinf(self.phase * TAU) + 1.0) / 2.0,
-            WaveType::SawTooth => self.phase,
+            WaveType::Sine => sinf(self.phase * TAU),
+            WaveType::SawTooth => self.phase * 2.0 - 1.0,
             WaveType::Square => {
                 if self.phase < 0.5 {
                     1.0
                 } else {
-                    0.0
+                    -1.0
                 }
             }
             WaveType::PWM => {
                 if self.phase < self.duty {
                     1.0
                 } else {
-                    0.0
+                    -1.0
                 }
             }
         };
@@ -135,7 +133,7 @@ impl Oscillator {
             self.phase -= 1.0;
         }
 
-        MAX_DAC_VALUE as f32 * sample
+        sample
     }
 
     const fn update_phase_inc(&mut self) {

@@ -201,7 +201,7 @@ fn TIM7() {
         if let Some(dac) = dac.as_mut() {
             let sample = state.next_sample();
             let filtered = state.filter.process(sample);
-            let as_u16 = (filtered as u16).clamp(0, MAX_DAC_VALUE);
+            let as_u16 = (((filtered + 1.0) * MAX_DAC_VALUE as f32 / 2.0) as u16).clamp(0, MAX_DAC_VALUE);
             dac.write_data(as_u16);
         }
     });
