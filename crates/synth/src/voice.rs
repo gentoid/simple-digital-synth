@@ -71,7 +71,6 @@ impl VoicePool {
     pub fn on_note_on(&mut self, note: Note) {
         let mut voice = Voice::new(self.envelope.clone(), note);
         voice.note_on();
-        debug!("Next note index: {}", self.next_voice_index);
 
         if self.voices.len() <= self.next_voice_index {
             self.voices.push(voice);

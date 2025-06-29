@@ -215,7 +215,7 @@ fn USART1_EXTI25() {
             match uart.read() {
                 Ok(byte) => {
                     let mut state = STATE.borrow(cs).borrow_mut();
-                    debug!(" == Byte: 0x{:02X} | 0b{:08b}", byte, byte);
+                    // debug!(" == Byte: 0x{:02X} | 0b{:08b}", byte, byte);
                     state.process_midi_byte(byte);
                 }
                 Err(err) => match err {
