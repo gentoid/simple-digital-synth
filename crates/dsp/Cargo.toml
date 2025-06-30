@@ -1,0 +1,25 @@
+[package]
+name = "dsp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7.5"
+stm32h7xx-hal = { version = "0.16.0", features = [
+    "stm32h747cm7",
+    "rt",
+    "defmt",
+    "log-rtt",
+] }
+libm = "0.2.15"
+defmt = "1.0"
+defmt-rtt = "1.0"
+panic-probe = { version = "1.0", features = ["print-defmt"] }
+heapless = "0.8.0"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+harness = false
+test = false

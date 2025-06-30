@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "crates/midi_parser","crates/synth"]
+members = [ "crates/midi_parser","crates/dsp", "crates/interfaces"]
 
 [profile.dev]
 codegen-units = 1
