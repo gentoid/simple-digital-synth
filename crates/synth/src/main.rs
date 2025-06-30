@@ -7,6 +7,7 @@ use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 use defmt::*;
 use defmt_rtt as _;
+use heapless::spsc;
 use panic_probe as _;
 use stm32f3xx_hal::{
     dac::Dac,
@@ -43,9 +44,15 @@ static DAC_HANDLE: Mutex<RefCell<Option<Dac>>> = Mutex::new(RefCell::new(None));
 
 static UART: Mutex<RefCell<Option<Serial<USART1, (PA9<AF7<PushPull>>, PA10<AF7<PushPull>>)>>>> =
     Mutex::new(RefCell::new(None));
+static MIDI_BYTES_PRODUCER: Mutex<RefCell<Option<spsc::Producer<u8, 64>>>> =
+    Mutex::new(RefCell::new(None));
+static MIDI_BYTES_CONSUMER: Mutex<RefCell<Option<spsc::Consumer<u8, 64>>>> =
+    Mutex::new(RefCell::new(None));
 
 static ENCODER: Mutex<RefCell<crate::encoder::Encoder>> =
     Mutex::new(RefCell::new(crate::encoder::Encoder::new()));
+
+static mut MIDI_BYTES_QUEUE: spsc::Queue<u8, 64> = spsc::Queue::new();
 
 static STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State::new()));
 
@@ -81,6 +88,16 @@ fn main() -> ! {
         &mut rcc.apb2,
     );
     serial.configure_interrupt(Event::ReceiveDataRegisterNotEmpty, true);
+
+    // MIDI queue
+
+    cortex_m::interrupt::free(|cs| {
+        let queue = &raw mut MIDI_BYTES_QUEUE;
+        if let Some((prod, cons)) = unsafe { queue.as_mut().map(|q| q.split()) } {
+            MIDI_BYTES_PRODUCER.borrow(cs).replace(Some(prod));
+            MIDI_BYTES_CONSUMER.borrow(cs).replace(Some(cons));
+        };
+    });
 
     // // Encoder
 
@@ -128,10 +145,24 @@ fn main() -> ! {
         pac::NVIC::unmask(pac::Interrupt::USART1_EXTI25);
     }
 
+    info!("Going to set up TIM7");
     setup_tim7(&dp.TIM7, &clocks);
+    info!("Right before the main loop");
 
     loop {
-        cortex_m::asm::wfi();
+        cortex_m::interrupt::free(|cs| {
+            info!("FREE context");
+            if let Some(cons) = MIDI_BYTES_CONSUMER.borrow(cs).borrow_mut().as_mut() {
+                info!("Consumer found");
+                let mut state = STATE.borrow(cs).borrow_mut();
+                while let Some(byte) = cons.dequeue() {
+                    debug!(" ++ Byte: 0x{:02X} | 0b{:08b}", byte, byte);
+                    state.process_midi_byte(byte);
+                }
+            }
+        });
+
+        // cortex_m::asm::wfi();
     }
 }
 
@@ -184,20 +215,35 @@ fn setup_tim7(tim: &pac::TIM7, clocks: &rcc::Clocks) {
         arr = pclk / (target_freq * (psc + 1));
     }
 
+    info!("1");
+
     // Turn it off before setting up
     tim.cr1.modify(|_, w| w.cen().clear_bit());
+
+    info!("2");
 
     tim.psc.write(|w| w.psc().bits(0));
     tim.arr.write(|w| w.arr().bits((arr - 1) as u16));
 
+    info!("3");
+
     tim.egr.write(|w| w.ug().set_bit());
 
+    info!("4");
+
     tim.dier.write(|w| w.uie().set_bit());
-    tim.cr1.write(|w| w.cen().set_bit());
+    tim.sr.modify(|_, w| w.uif().clear_bit());
+
+    info!("5");
 
     unsafe {
         pac::NVIC::unmask(pac::Interrupt::TIM7);
     }
+    info!("6");
+    
+    tim.cr1.write(|w| w.cen().set_bit());
+    info!("7");
+
 }
 
 #[interrupt]
@@ -212,9 +258,9 @@ fn TIM7() {
 
         if let Some(dac) = dac.as_mut() {
             let sample = state.next_sample();
-            let filtered = state.filter.process(sample);
+            // let filtered = state.filter.process(sample);
             let as_u16 =
-                (((filtered + 1.0) * MAX_DAC_VALUE as f32 / 2.0) as u16).clamp(0, MAX_DAC_VALUE);
+                (((sample + 1.0) * MAX_DAC_VALUE as f32 / 2.0) as u16).clamp(0, MAX_DAC_VALUE);
             dac.write_data(as_u16);
         }
     });
@@ -227,9 +273,13 @@ fn USART1_EXTI25() {
         if let Some(uart) = UART.borrow(cs).borrow_mut().as_mut() {
             match uart.read() {
                 Ok(byte) => {
-                    let mut state = STATE.borrow(cs).borrow_mut();
-                    // debug!(" == Byte: 0x{:02X} | 0b{:08b}", byte, byte);
-                    state.process_midi_byte(byte);
+                    debug!(" == Byte: 0x{:02X} | 0b{:08b}", byte, byte);
+                    if let Some(prod) = MIDI_BYTES_PRODUCER.borrow(cs).borrow_mut().as_mut() {
+                        info!("prod found");
+                        let _ = prod.enqueue(byte);
+                    }
+                    // let mut state = STATE.borrow(cs).borrow_mut();
+                    // state.process_midi_byte(byte);
                 }
                 Err(err) => match err {
                     nb::Error::Other(err) => match err {
