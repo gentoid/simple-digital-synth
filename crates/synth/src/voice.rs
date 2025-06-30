@@ -58,6 +58,10 @@ impl VoicePool {
         }
     }
 
+    pub fn is_active(&self) -> bool {
+        self.voices.iter().find(|v| v.is_active()).is_some()
+    }
+
     pub fn next_sample(&mut self) -> f32 {
         let mut total: f32 = 0.0;
 

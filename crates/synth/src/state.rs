@@ -44,6 +44,10 @@ impl State {
         self.voice_pool.next_sample()
     }
 
+    pub fn is_active(&self) -> bool {
+        self.voice_pool.is_active()
+    }
+
     pub fn process_midi_byte(&mut self, byte: u8) {
         self.parser.process_midi_byte(byte);
         if self.parser.message_kind().is_none() {
