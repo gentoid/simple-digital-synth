@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-embassy-stm32 = { version = "0.2.0", features = ["stm32h755zi-cm4", "time-driver-any", "exti", "memory-x"] }
+embassy-stm32 = { version = "0.2.0", features = ["stm32h755zi-cm4", "time-driver-any", "exti"] }
 embassy-time = { version = "0.4.0" }
 embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread", "defmt"] }
 
-cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+cortex-m = { version = "0.7.7", features = ["critical-section"] }
 cortex-m-rt = "0.7.5"
 defmt = "1.0"
 defmt-rtt = "1.0"
@@ -16,8 +16,14 @@ panic-probe = { version = "1.0", features = ["print-defmt"] }
 midi_parser = { path = "../midi_parser", default-features = false }
 heapless = "0.8.0"
 
-[[bin]]
-name = "main"
-path = "src/main.rs"
-harness = false
-test = false
+[profile.dev]
+codegen-units = 1
+debug = true
+lto = false
+opt-level = 0
+
+[profile.release]
+codegen-units = 1
+debug = false
+lto = true
+opt-level = "z"

@@ -21,9 +21,8 @@ bind_interrupts!(struct Irqs {
     USART1 => usart::InterruptHandler<USART1>;
 });
 
-// @todo move to some shared place so the M7 core could init it first
-#[unsafe(link_section = ".shared")]
-pub static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
+#[unsafe(link_section = ".ram_d3.shared_data")]
+static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {

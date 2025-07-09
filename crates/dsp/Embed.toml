@@ -1,5 +1,5 @@
 [default.general]
-chip = "STM32F303VCTx"
+chip = "STM32H755ZITx"
 connect_under_reset = true
 
 [default.rtt]

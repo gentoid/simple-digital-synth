@@ -1,2 +1,0 @@
-[alias]
-test-midi-std = "test -p midi_parser --features std --target x86_64-pc-windows-msvc"

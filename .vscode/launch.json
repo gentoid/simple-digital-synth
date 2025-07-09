@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug STM32 (OpenOCD)",
+            "name": "Debug F303 (OpenOCD)",
             "cwd": "${workspaceFolder}",
             "executable": "target/thumbv7em-none-eabihf/debug/main",
             "request": "launch",
@@ -19,6 +19,26 @@
             ],
             "svdFile": "../stm32/STM32F303.svd",
             "preLaunchTask": "rust: cargo build",
+            // "liveWatch": {
+            //     "enabled": true,
+            //     "samplesPerSecond": 4
+            // }
+        },
+        {
+            "name": "Debug H755 (OpenOCD)",
+            "cwd": "${workspaceFolder}",
+            "executable": "target/thumbv7em-none-eabihf/debug/main",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "servertype": "openocd",
+            "device": "STM32H755ZIT6",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32h7x.cfg"
+            ],
+            "svdFile": "../stm32/STM32H755.svd",
+            "preLaunchTask": "rust: cargo build"
             // "liveWatch": {
             //     "enabled": true,
             //     "samplesPerSecond": 4

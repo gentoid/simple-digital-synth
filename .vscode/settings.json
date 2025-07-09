@@ -3,14 +3,24 @@
     "mcu-debug.peripheral-viewer.debugLevel": 1,
     "rust-analyzer.restartServerOnConfigChange": true,
     "rust-analyzer.assist.preferSelf": true,
+    "rust-analyzer.cargo.allTargets": false,
+    "rust-analyzer.cargo.target": "thumbv7em-none-eabihf",
+    "rust-analyzer.linkedProjects": [
+        "crates/dsp/Cargo.toml",
+        "crates/interfaces/Cargo.toml",
+        "crates/midi_parser/Cargo.toml"
+    ],
     "cSpell.words": [
         "afrh",
+        "ccdr",
         "cfgr",
         "defmt",
         "EXTI",
         "gpioa",
         "gpiob",
+        "gpioe",
         "heapless",
+        "Irqs",
         "libm",
         "moder",
         "NVIC",
@@ -23,5 +33,6 @@
         "SYSCFG",
         "sysclk",
         "UART"
-    ]
+    ],
+    "cmake.ignoreCMakeListsMissing": true
 }

@@ -4,22 +4,25 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+cortex-m = { version = "0.7.7", features = ["critical-section"] }
 cortex-m-rt = "0.7.5"
-stm32h7xx-hal = { version = "0.16.0", features = [
-    "stm32h747cm7",
-    "rt",
-    "defmt",
-    "log-rtt",
-] }
 libm = "0.2.15"
 defmt = "1.0"
 defmt-rtt = "1.0"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
 heapless = "0.8.0"
+embassy-stm32 = { version = "0.2.0", features = ["rt", "stm32h755zi-cm7", "time", "time-driver-any", "exti"] }
+embassy-time = "0.4.0"
+# embassy-sync = "0.7.0"
 
-[[bin]]
-name = "main"
-path = "src/main.rs"
-harness = false
-test = false
+[profile.dev]
+codegen-units = 1
+debug = true
+lto = false
+opt-level = 0
+
+[profile.release]
+codegen-units = 1
+debug = false
+lto = true
+opt-level = "z"

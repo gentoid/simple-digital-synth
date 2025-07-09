@@ -1,0 +1,15 @@
+[default]
+chip = "STM32H755ZI"
+
+[flashing]
+enabled = true
+halt_afterwards = false
+
+[reset]
+halt_afterwards = true
+
+[firmware]
+files = [
+    { path = "crates/dsp/target/thumbv7em-none-eabihf/release/main", address = "0x08000000" },
+    { path = "crates/interfaces/target/thumbv7em-none-eabihf/release/main", address = "0x08100000" }
+]
