@@ -218,6 +218,7 @@ dependencies = [
  "embassy-time",
  "heapless",
  "libm",
+ "mcu_common",
  "panic-probe",
 ]
 
@@ -543,6 +544,14 @@ name = "litrs"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
+
+[[package]]
+name = "mcu_common"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "embassy-stm32",
+]
 
 [[package]]
 name = "nb"

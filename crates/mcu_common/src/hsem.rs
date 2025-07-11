@@ -1,6 +1,6 @@
 use core::{
     cell::UnsafeCell,
-    sync::atomic::{compiler_fence, AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, Ordering, compiler_fence},
 };
 
 use critical_section::RawRestoreState;
@@ -8,6 +8,10 @@ use embassy_stm32::{hsem::HardwareSemaphore, peripherals::HSEM};
 
 const SEMAPHORE_ID: u8 = 0;
 
+#[cfg(feature = "cm7")]
+const PROCESS_ID: u8 = 0;
+
+#[cfg(feature = "cm4")]
 const PROCESS_ID: u8 = 1;
 
 struct HsemCell {
@@ -29,7 +33,7 @@ pub fn init_hsem_driver(hsem: HardwareSemaphore<'static, HSEM>) {
         // already initialized
         return;
     }
-    
+
     unsafe {
         *HSEM_CELL.inner.get() = Some(hsem);
     }
@@ -47,7 +51,7 @@ unsafe impl critical_section::Impl for HsemCriticalSection {
         loop {
             if hsem.two_step_lock(SEMAPHORE_ID, PROCESS_ID).is_ok() {
                 compiler_fence(Ordering::SeqCst);
-                return;
+                return 0;
             }
         }
     }

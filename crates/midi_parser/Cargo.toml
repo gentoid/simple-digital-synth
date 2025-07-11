@@ -8,5 +8,6 @@ heapless = "0.8"
 panic-probe = { version = "1.0", features = ["print-defmt"]}
 
 [features]
-default = ["std"]
+default = []
 std = []
+ra = ["std"]

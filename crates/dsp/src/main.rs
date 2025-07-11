@@ -11,14 +11,12 @@ use embassy_stm32::{
 };
 use {defmt_rtt as _, panic_probe as _};
 
-mod hsem;
-
 #[unsafe(link_section = ".ram_d3.shared_data")]
 static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    critical_section::set_impl!(hsem::HsemCriticalSection);
+    critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
 
     info!("M7 core started!");
 
@@ -48,7 +46,7 @@ fn main() -> ! {
 
     let p = embassy_stm32::init_primary(config, &SHARED_DATA);
     let hsem = HardwareSemaphore::new(p.HSEM);
-    hsem::init_hsem_driver(hsem);
+    mcu_common::hsem::init_hsem_driver(hsem);
 
     info!("Embassy STM32 initialized!");
 

@@ -7,7 +7,8 @@ use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     SharedData, bind_interrupts, exti, gpio,
-    peripherals::{self, DMA2_CH2, PA0, PA1, PA2, PA10, USART1},
+    hsem::HardwareSemaphore,
+    peripherals::{self, DMA2_CH2, PA0, PA1, PA2, PA10},
     usart,
 };
 use embassy_time::{Duration, Timer};
@@ -18,7 +19,7 @@ use crate::encoder::Rotation;
 pub mod encoder;
 
 bind_interrupts!(struct Irqs {
-    USART1 => usart::InterruptHandler<USART1>;
+    USART1 => usart::InterruptHandler<peripherals::USART1>;
 });
 
 #[unsafe(link_section = ".ram_d3.shared_data")]
@@ -28,7 +29,10 @@ static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
 async fn main(spawner: Spawner) {
     info!("Starting the M4 core");
 
+    critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
     let p = embassy_stm32::init_secondary(&SHARED_DATA);
+    let hsem = HardwareSemaphore::new(p.HSEM);
+    mcu_common::hsem::init_hsem_driver(hsem);
 
     spawner
         .spawn(receive_midi_messages(p.USART1, p.PA10, p.DMA2_CH2))
@@ -38,7 +42,7 @@ async fn main(spawner: Spawner) {
 }
 
 #[embassy_executor::task]
-async fn receive_midi_messages(usart: USART1, pin: PA10, ch: DMA2_CH2) {
+async fn receive_midi_messages(usart: peripherals::USART1, pin: PA10, ch: DMA2_CH2) {
     let mut config = usart::Config::default();
     config.baudrate = 31_250;
 
