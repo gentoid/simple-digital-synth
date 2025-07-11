@@ -4,18 +4,22 @@
 use core::mem::MaybeUninit;
 
 use defmt::info;
-use defmt_rtt as _;
 use embassy_stm32::{
     SharedData,
     gpio::{Level, Output, Speed},
+    hsem::HardwareSemaphore,
 };
-use panic_probe as _;
+use {defmt_rtt as _, panic_probe as _};
+
+mod hsem;
 
 #[unsafe(link_section = ".ram_d3.shared_data")]
 static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
+    critical_section::set_impl!(hsem::HsemCriticalSection);
+
     info!("M7 core started!");
 
     let mut config = embassy_stm32::Config::default();
@@ -43,6 +47,9 @@ fn main() -> ! {
     }
 
     let p = embassy_stm32::init_primary(config, &SHARED_DATA);
+    let hsem = HardwareSemaphore::new(p.HSEM);
+    hsem::init_hsem_driver(hsem);
+
     info!("Embassy STM32 initialized!");
 
     let mut led = Output::new(p.PB14, Level::High, Speed::Low);
@@ -50,10 +57,10 @@ fn main() -> ! {
     loop {
         info!("High");
         led.set_high();
-        cortex_m::asm::delay(8_000_000); // Approx 0.5 seconds at 16 MHz
+        cortex_m::asm::delay(8_000_000);
         info!("Low");
         led.set_low();
-        cortex_m::asm::delay(8_000_000); // Approx 0.5 seconds at 16 MHz
+        cortex_m::asm::delay(8_000_000);
     }
 }
 
