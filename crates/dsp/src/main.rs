@@ -16,9 +16,19 @@ static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
+    // let p = unsafe { embassy_stm32::Peripherals::steal() };
+    // let cpuid = unsafe { cortex_m::peripheral::CPUID::PTR.read_volatile().base.read() };
+    // let id = cpuid & 0xF0;
+    // // info!("Id is {}", id);
+    // let hsem = HardwareSemaphore::new(p.HSEM);
+    // mcu_common::hsem::init_hsem_driver(hsem);
+    // critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
 
-    info!("M7 core started!");
+    // for i in 0..id {
+    //     info!("Hello {}", i);
+    // }
+
+    // info!("M7 core started!");
 
     let mut config = embassy_stm32::Config::default();
     {
@@ -45,20 +55,27 @@ fn main() -> ! {
     }
 
     let p = embassy_stm32::init_primary(config, &SHARED_DATA);
-    let hsem = HardwareSemaphore::new(p.HSEM);
-    mcu_common::hsem::init_hsem_driver(hsem);
 
     info!("Embassy STM32 initialized!");
+
+    // embassy_stm32::pac::PWR.cpucr().modify(|w| w.set_cssf(val));
+
+    // let rcc = p.RCC;
+
+    // rcc
+    // unsafe {
+    //     p.
+    // }
 
     let mut led = Output::new(p.PB14, Level::High, Speed::Low);
 
     loop {
         info!("High");
         led.set_high();
-        cortex_m::asm::delay(8_000_000);
+        cortex_m::asm::delay(4_000_00000);
         info!("Low");
         led.set_low();
-        cortex_m::asm::delay(8_000_000);
+        cortex_m::asm::delay(4_000_00000);
     }
 }
 

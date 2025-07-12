@@ -6,13 +6,15 @@ use core::mem::MaybeUninit;
 use defmt::{debug, info};
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    SharedData, bind_interrupts, exti, gpio,
+    SharedData, bind_interrupts, exti,
+    gpio::{self, Level, Output, Speed},
     hsem::HardwareSemaphore,
     peripherals::{self, DMA2_CH2, PA0, PA1, PA2, PA10},
     usart,
 };
 use embassy_time::{Duration, Timer};
 use midi_parser::parser::{MidiChannel, RunningStatus};
+use {defmt_rtt as _, panic_probe as _};
 
 use crate::encoder::Rotation;
 
@@ -34,11 +36,24 @@ async fn main(spawner: Spawner) {
     let hsem = HardwareSemaphore::new(p.HSEM);
     mcu_common::hsem::init_hsem_driver(hsem);
 
+    info!("M4 configured");
+
     spawner
         .spawn(receive_midi_messages(p.USART1, p.PA10, p.DMA2_CH2))
         .unwrap();
     spawner.spawn(button_task(p.PA2, p.EXTI2)).unwrap();
     spawner.spawn(encoder_task(p.PA0, p.PA1, p.EXTI0)).unwrap();
+
+    let mut led = Output::new(p.PE1, Level::High, Speed::Low);
+
+    loop {
+        info!("High");
+        led.set_high();
+        cortex_m::asm::delay(8_000_000);
+        info!("Low");
+        led.set_low();
+        cortex_m::asm::delay(8_000_000);
+    }
 }
 
 #[embassy_executor::task]

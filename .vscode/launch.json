@@ -5,29 +5,42 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug F303 (OpenOCD)",
+            "name": "H755 M7 (debug)",
             "cwd": "${workspaceFolder}",
-            "executable": "target/thumbv7em-none-eabihf/debug/main",
+            "executable": "crates/dsp/target/thumbv7em-none-eabihf/debug/dsp",
             "request": "launch",
             "type": "cortex-debug",
             "runToEntryPoint": "main",
             "servertype": "openocd",
-            "device": "STM32F303VC",
+            "device": "STM32H755ZIT6",
             "configFiles": [
                 "interface/stlink.cfg",
-                "target/stm32f3x.cfg"
+                "./openocd.cfg",
+                // "target/stm32h7x_dual_bank.cfg"
             ],
-            "svdFile": "../stm32/STM32F303.svd",
-            "preLaunchTask": "rust: cargo build",
+            // "chainedConfigurations": {
+            //     "enabled": true,
+            //     "waitOnEvent": "postInit",
+            //     "lifeCycleShared": true,
+            //     "launches": [
+            //         {
+            //             "name": "H755 M4 (debug)"
+            //         }
+            //     ]
+            // },
+            "svdFile": "./stm32/STM32H755_CM7.svd",
+            "preLaunchTask": "build-m7 (debug)",
             // "liveWatch": {
             //     "enabled": true,
             //     "samplesPerSecond": 4
-            // }
+            // },
+            // "numberOfProcessors": 2,
+            // "targetProcessor": 0,
         },
         {
-            "name": "Debug H755 (OpenOCD)",
+            "name": "H755 M4 (debug)",
             "cwd": "${workspaceFolder}",
-            "executable": "target/thumbv7em-none-eabihf/debug/main",
+            "executable": "crates/interfaces/target/thumbv7em-none-eabihf/debug/interfaces",
             "request": "launch",
             "type": "cortex-debug",
             "runToEntryPoint": "main",
@@ -37,12 +50,31 @@
                 "interface/stlink.cfg",
                 "target/stm32h7x.cfg"
             ],
-            "svdFile": "../stm32/STM32H755.svd",
-            "preLaunchTask": "rust: cargo build"
-            // "liveWatch": {
-            //     "enabled": true,
-            //     "samplesPerSecond": 4
-            // }
+            "svdFile": "./stm32/STM32H755_CM4.svd",
+            "preLaunchTask": "build-m4 (debug)",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 4
+            },
+            "serverArgs": ["-c", "gdb_port 50001", "-c", "tcl_port 50003", "-c", "telnet_port 50005"],
+            "numberOfProcessors": 2,
+            "targetProcessor": 1,
+        },
+        {
+            "name": "H755 M7 (release)",
+            // "cwd": "${workspaceFolder}",
+            "executable": "crates/dsp/target/thumbv7em-none-eabihf/release/dsp",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "servertype": "openocd",
+            "device": "STM32H755ZIT6",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32h7x.cfg"
+            ],
+            "svdFile": "./stm32/STM32H755.svd",
+            "preLaunchTask": "build-all-cores (release)"
         }
     ]
 }

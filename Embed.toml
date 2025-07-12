@@ -1,15 +1,18 @@
-[default]
-chip = "STM32H755ZI"
+[default.general]
+chip = "STM32H755ZITx"
+connect_under_reset = true
+log_level = "DEBUG"
 
-[flashing]
+[default.rtt]
 enabled = true
-halt_afterwards = false
-
-[reset]
-halt_afterwards = true
+up_channels = [
+    { channel = 0, mode = "BlockIfFull", format = "Defmt", show_location = true },
+]
+# show_timestamps = true
 
 [firmware]
 files = [
-    { path = "crates/dsp/target/thumbv7em-none-eabihf/release/main", address = "0x08000000" },
-    { path = "crates/interfaces/target/thumbv7em-none-eabihf/release/main", address = "0x08100000" }
+    # { path = "crates/dsp/target/thumbv7em-none-eabihf/release/dsp", address = "0x08000000" },
+    { path = "crates/dsp/target/thumbv7em-none-eabihf/release/dsp", address = "0x08100000" },
+    # { path = "crates/interfaces/target/thumbv7em-none-eabihf/release/interfaces", address = "0x08100000" }
 ]
