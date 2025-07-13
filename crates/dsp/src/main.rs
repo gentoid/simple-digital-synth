@@ -72,18 +72,18 @@ fn main() -> ! {
         // cortex_m::asm::nop();
         info!("High");
         led1.set_high();
-        cortex_m::asm::delay(1_000_00000);
+        cortex_m::asm::delay(100_000_000);
         // led2.set_high();
-        cortex_m::asm::delay(1_000_00000);
+        cortex_m::asm::delay(100_000_000);
         led3.set_high();
-        cortex_m::asm::delay(1_000_00000);
+        cortex_m::asm::delay(100_000_000);
         info!("Low");
         led1.set_low();
-        cortex_m::asm::delay(1_000_00000);
+        cortex_m::asm::delay(100_000_000);
         // led2.set_low();
-        cortex_m::asm::delay(1_000_00000);
+        cortex_m::asm::delay(100_000_000);
         led3.set_low();
-        cortex_m::asm::delay(1_000_00000);
+        cortex_m::asm::delay(100_000_000);
     }
 }
 

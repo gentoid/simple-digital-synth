@@ -1,20 +1,19 @@
 #![no_main]
 #![no_std]
 
-// use core::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
-use defmt::info;
-// use defmt::{debug, info};
-// // use embassy_executor::Spawner;
+use defmt::{debug, info};
+// use embassy_executor::Spawner;
 use embassy_stm32::{
-//     Config, SharedData, bind_interrupts, exti,
+    Config, SharedData, bind_interrupts, exti,
     gpio::{self, Level, Output, Speed},
-//     hsem::HardwareSemaphore,
-//     peripherals::{self, DMA2_CH2, PA0, PA1, PA2, PA10},
-//     usart,
+    hsem::HardwareSemaphore,
+    peripherals::{self, DMA2_CH2, PA0, PA1, PA2, PA10},
+    usart,
 };
-// // use embassy_time::{Duration, Timer};
-// use midi_parser::parser::{MidiChannel, RunningStatus};
+// use embassy_time::{Duration, Timer};
+use midi_parser::parser::{MidiChannel, RunningStatus};
 use {defmt_rtt as _, panic_probe as _};
 // use panic_probe as _;
 
@@ -22,53 +21,34 @@ use {defmt_rtt as _, panic_probe as _};
 
 // pub mod encoder;
 
-// #[unsafe(link_section = ".ram_d3.shared_data")]
-// static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
+#[unsafe(link_section = ".ram_d3.shared_data")]
+static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    let dp = unsafe { embassy_stm32::Peripherals::steal() };
-    let mut led2 = Output::new(dp.PE1, Level::High, Speed::Low);
+    let p = unsafe { embassy_stm32::Peripherals::steal() };
+    let hsem = HardwareSemaphore::new(p.HSEM);
+    
+    mcu_common::hsem::init_hsem_driver(hsem);
+    critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
+    let p = embassy_stm32::init_secondary(&SHARED_DATA);
+    
+    info!("M4: HSEM has been successfully set up");
+
+    let mut led2 = Output::new(p.PE1, Level::High, Speed::Low);
 
     loop {
         info!("M4: High");
-        // led1.set_high();
-        cortex_m::asm::delay(4_172_500);
+        cortex_m::asm::delay(4_170_000);
         led2.set_high();
-        cortex_m::asm::delay(4_172_500);
-        // led3.set_high();
-        cortex_m::asm::delay(4_172_500);
+        cortex_m::asm::delay(4_170_000);
+        cortex_m::asm::delay(4_170_000);
         info!("M4: Low");
-        // led1.set_low();
-        cortex_m::asm::delay(4_172_500);
+        cortex_m::asm::delay(4_170_000);
         led2.set_low();
-        cortex_m::asm::delay(4_172_500);
-        // led3.set_low();
-        cortex_m::asm::delay(4_172_500);
+        cortex_m::asm::delay(4_170_000);
+        cortex_m::asm::delay(4_170_000);
     }
-    // let p = embassy_stm32::init_secondary(&SHARED_DATA);
-
-    // let p = unsafe { embassy_stm32::Peripherals::steal() };
-    // let hsem = HardwareSemaphore::new(p.HSEM);
-
-    // mcu_common::hsem::init_hsem_driver(hsem);
-    // critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
-    
-    // info!("M4: HSEM has been successfully set up");
-    
-
-    // info!("M4: Starting the M4 core");
-
-    // let mut led = Output::new(p.PE1, Level::High, Speed::Low);
-
-    // loop {
-    //     info!("M4: High");
-    //     led.set_high();
-    //     cortex_m::asm::delay(16_000_00000);
-    //     info!("M4: Low");
-    //     led.set_low();
-    //     cortex_m::asm::delay(16_000_00000);
-    // }
 }
 
 // bind_interrupts!(struct Irqs {

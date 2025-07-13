@@ -8,11 +8,11 @@ embassy-stm32 = { version = "0.2.0", features = [
     "stm32h755zi-cm4",
     "exti",
 ] }
-mcu_common = { path = "../mcu_common", features = ["cm4", "single-core"] }
+mcu_common = { path = "../mcu_common", features = ["cm4"] }
 
-cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+cortex-m = { version = "0.7.7", features = ["critical-section"] }
 cortex-m-rt = "0.7.5"
-# critical-section = "1.2"
+critical-section = "1.2"
 defmt = "1.0"
 defmt-rtt = "1.0"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
