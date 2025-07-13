@@ -1,0 +1,20 @@
+[default.general]
+chip = "STM32H755ZITx"
+connect_under_reset = true
+log_level = "INFO"
+
+[default.rtt]
+enabled = true
+up_channels = [
+    { channel = 1, mode = "BlockIfFull", format = "Defmt", show_location = true },
+]
+
+[default.reset]
+enabled = true
+halt_afterwards = true
+
+[firmware]
+files = [
+    # { path = "target/thumbv7em-none-eabihf/release/dsp", address = "0x08000000" },
+    { path = "target/thumbv7em-none-eabihf/release/interfaces", address = "0x08100000" }
+]

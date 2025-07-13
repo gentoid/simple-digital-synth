@@ -49,7 +49,7 @@ unsafe impl critical_section::Impl for HsemCriticalSection {
         let hsem = hsem();
 
         loop {
-            if hsem.one_step_lock(SEMAPHORE_ID).is_ok() {
+            if hsem.two_step_lock(SEMAPHORE_ID, PROCESS_ID).is_ok() {
                 compiler_fence(Ordering::SeqCst);
                 return 0;
             }

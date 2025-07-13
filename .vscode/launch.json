@@ -34,8 +34,8 @@
             //     "enabled": true,
             //     "samplesPerSecond": 4
             // },
-            // "numberOfProcessors": 2,
-            // "targetProcessor": 0,
+            "numberOfProcessors": 2,
+            "targetProcessor": 0,
         },
         {
             "name": "H755 M4 (debug)",
@@ -48,7 +48,8 @@
             "device": "STM32H755ZIT6",
             "configFiles": [
                 "interface/stlink.cfg",
-                "target/stm32h7x.cfg"
+                "./openocd.cfg",
+                // "target/stm32h7x.cfg",
             ],
             "svdFile": "./stm32/STM32H755_CM4.svd",
             "preLaunchTask": "build-m4 (debug)",
@@ -59,6 +60,7 @@
             "serverArgs": ["-c", "gdb_port 50001", "-c", "tcl_port 50003", "-c", "telnet_port 50005"],
             "numberOfProcessors": 2,
             "targetProcessor": 1,
+            "showDevDebugOutput": "vscode",
         },
         {
             "name": "H755 M7 (release)",
