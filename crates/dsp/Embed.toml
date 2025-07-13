@@ -10,11 +10,20 @@ up_channels = [
 ]
 
 [default.reset]
-enabled = false
+enabled = true
 halt_afterwards = true
 
-[firmware]
-files = [
-    { path = "target/thumbv7em-none-eabihf/release/dsp", address = "0x08000000" },
-    # { path = "../interfaces/target/thumbv7em-none-eabihf/release/interfaces", address = "0x08100000" }
-]
+# [firmware]
+# files = [
+#     { path = "target/thumbv7em-none-eabihf/release/dsp", address = "0x08000000" },
+#     # { path = "../interfaces/target/thumbv7em-none-eabihf/release/interfaces", address = "0x08100000" }
+# ]
+
+[connect.general]
+connect_under_reset = false
+
+[connect.flashing]
+enabled = false
+
+[connect.reset]
+enabled = false

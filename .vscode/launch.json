@@ -19,7 +19,7 @@
             "device": "STM32H755ZIT6",
             "svdFile": "./stm32/STM32H755_CM7.svd",
             "v1": false,
-            "showDevDebugOutput": "both",
+            // "showDevDebugOutput": "both",
             "serverArgs": [
                 "-l", "1",
                 "-m", "0",
@@ -34,15 +34,15 @@
             "servertype": "stlink",
             "configFiles": ["interface/stlink.cfg", "target/stm32h7x.cfg"],
             "executable": "crates/interfaces/target/thumbv7em-none-eabihf/debug/interfaces",
-            // "loadFiles": [
-            //     // "crates/dsp/target/thumbv7em-none-eabihf/debug/dsp",
-            //     "crates/interfaces/target/thumbv7em-none-eabihf/debug/interfaces",
-            // ],
+            "loadFiles": [
+                "crates/dsp/target/thumbv7em-none-eabihf/debug/dsp",
+                "crates/interfaces/target/thumbv7em-none-eabihf/debug/interfaces",
+            ],
             "runToEntryPoint": "main",
             "device": "STM32H755ZIT6",
             "svdFile": "./stm32/STM32H755_CM4.svd",
             "v1": false,
-            "showDevDebugOutput": "both",
+            // "showDevDebugOutput": "both",
             "serverArgs": [
                 "-l", "1",
                 "-m", "1",
@@ -54,7 +54,7 @@
             "name": "M7 + M4",
             "type": "cortex-debug",
             "request": "launch",
-            "servertype": "stlink",
+            "servertype": "openocd",
             "configFiles": ["interface/stlink.cfg", "target/stm32h7x.cfg"],
             "executable": "crates/dsp/target/thumbv7em-none-eabihf/debug/dsp",
             "loadFiles": [
@@ -65,19 +65,19 @@
             "device": "STM32H755ZIT6",
             "svdFile": "./stm32/STM32H755_CM7.svd",
             "v1": false,
-            "showDevDebugOutput": "both",
-            "serverArgs": [
-                "-l", "1",
-                "-m", "0",
-                "-k",
-                "-t", "-s",
-            ],
+            // "showDevDebugOutput": "both",
+            // "serverArgs": [
+            //     "-l", "1",
+            //     "-m", "0",
+            //     "-k",
+            //     "-t", "-s",
+            // ],
 
             "chainedConfigurations": {
                 "enabled": true,
                 "waitOnEvent": "postInit",
-                "detached": true,
-                "delayMs": 10000,    // Wait for 5s
+                "detached": false,
+                "delayMs": 5000,    // Wait for 5s
                 "lifecycleManagedByParent": true,   
                 "launches": [ 
                     {
@@ -92,17 +92,17 @@
             "type": "cortex-debug",
             "executable": "crates/interfaces/target/thumbv7em-none-eabihf/debug/interfaces",
             "request": "attach", 
-            "servertype": "stlink",
+            "servertype": "openocd",
             "device": "STM32H755ZIT6",
             "svdFile": "./stm32/STM32H755_CM4.svd",
             "v1": false,
-            "showDevDebugOutput": "both",
-            "serverArgs": [
-                "-l", "1",
-                "-m", "1",
-                "-t", "-s",
-                "-g", "-v",
-            ],
+            // "showDevDebugOutput": "both",
+            // "serverArgs": [
+            //     "-l", "1",
+            //     "-m", "1",
+            //     "-t", "-s",
+            //     "-g", "-v",
+            // ],
         },
         {
             "name": "H755 M7 (debug)",
@@ -130,12 +130,13 @@
             // },
             "svdFile": "./stm32/STM32H755_CM7.svd",
             "preLaunchTask": "build-m7 (debug)",
+            "showDevDebugOutput": "raw",
             // "liveWatch": {
             //     "enabled": true,
             //     "samplesPerSecond": 4
             // },
-            "numberOfProcessors": 2,
-            "targetProcessor": 0,
+            // "numberOfProcessors": 2,
+            // "targetProcessor": 0,
         },
         {
             "name": "H755 M4 (debug)",

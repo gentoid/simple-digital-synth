@@ -1,6 +1,6 @@
 [default.general]
 chip = "STM32H755ZITx"
-connect_under_reset = false
+connect_under_reset = true
 log_level = "INFO"
 
 [default.rtt]
@@ -10,7 +10,7 @@ up_channels = [
 ]
 
 [default.reset]
-enabled = false
+enabled = true
 halt_afterwards = false
 
 # [firmware]
@@ -18,3 +18,12 @@ halt_afterwards = false
 #     # { path = "target/thumbv7em-none-eabihf/release/dsp", address = "0x08000000" },
 #     { path = "target/thumbv7em-none-eabihf/release/interfaces", address = "0x08100000" }
 # ]
+
+[connect.general]
+connect_under_reset = false
+
+[connect.flashing]
+enabled = false
+
+[connect.reset]
+enabled = false

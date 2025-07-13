@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+cortex-m = { version = "0.7.7", features = ["critical-section"] }
 cortex-m-rt = "0.7.5"
-mcu_common = { path = "../mcu_common", features = ["cm7", "single-core"] }
-# critical-section = "1.2"
+mcu_common = { path = "../mcu_common", features = ["cm7"] }
+critical-section = "1.2"
 libm = "0.2.15"
 defmt = "1.0"
 defmt-rtt = "1.0"
