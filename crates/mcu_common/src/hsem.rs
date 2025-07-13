@@ -51,7 +51,10 @@ unsafe impl critical_section::Impl for HsemCriticalSection {
         loop {
             if hsem.two_step_lock(SEMAPHORE_ID, PROCESS_ID).is_ok() {
                 compiler_fence(Ordering::SeqCst);
+                #[cfg(feature = "dual-core")]
                 return 0;
+                #[cfg(not(feature = "single-core"))]
+                return;
             }
         }
     }

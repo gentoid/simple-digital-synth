@@ -11,14 +11,15 @@ use embassy_stm32::{
 };
 use {defmt_rtt as _, panic_probe as _};
 
-#[unsafe(link_section = ".ram_d3.shared_data")]
-static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
+// #[unsafe(link_section = ".ram_d3.shared_data")]
+// static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    pac::RCC.ahb4enr().modify(|w| w.set_hsemen(true));
-    let p = unsafe { embassy_stm32::Peripherals::steal() };
-    let hsem = HardwareSemaphore::new(p.HSEM);
+    // pac::RCC.ahb4enr().modify(|w| w.set_hsemen(true));
+    // let p = unsafe { embassy_stm32::Peripherals::steal() };
+    // let hsem = HardwareSemaphore::new(p.HSEM);
+    pac::RCC.gcr().modify(|w| w.set_boot_c2(true));
     // let clear_key = hsem.get_clear_key();
     // let int0 = hsem.is_interrupt_active(embassy_stm32::hsem::CoreId::Core0, 0);
     // let int1 = hsem.is_interrupt_active(embassy_stm32::hsem::CoreId::Core0, 1);
@@ -59,8 +60,8 @@ fn main() -> ! {
     // let rr = hsem.one_step_lock(2);
     // let tt = hsem.is_semaphore_locked(2);
 
-    mcu_common::hsem::init_hsem_driver(hsem);
-    critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
+    // mcu_common::hsem::init_hsem_driver(hsem);
+    // critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
 
     // for i in 0..id {
     //     info!("Hello {}", i);
@@ -68,33 +69,35 @@ fn main() -> ! {
 
     // info!("M7 core started!");
 
-    let mut config = embassy_stm32::Config::default();
-    {
-        use embassy_stm32::rcc::*;
+    // let mut config = embassy_stm32::Config::default();
+    // {
+    //     use embassy_stm32::rcc::*;
 
-        config.rcc.hsi = Some(HSIPrescaler::DIV1);
-        config.rcc.csi = true;
-        config.rcc.pll1 = Some(Pll {
-            source: PllSource::HSI,
-            prediv: PllPreDiv::DIV4,
-            mul: PllMul::MUL50,
-            divp: Some(PllDiv::DIV2),
-            divq: Some(PllDiv::DIV8),
-            divr: None,
-        });
-        config.rcc.sys = Sysclk::PLL1_P;
-        config.rcc.ahb_pre = AHBPrescaler::DIV2;
-        config.rcc.apb1_pre = APBPrescaler::DIV2;
-        config.rcc.apb2_pre = APBPrescaler::DIV2;
-        config.rcc.apb3_pre = APBPrescaler::DIV2;
-        config.rcc.apb4_pre = APBPrescaler::DIV2;
-        config.rcc.voltage_scale = VoltageScale::Scale1;
-        config.rcc.supply_config = SupplyConfig::DirectSMPS;
-    }
+    //     config.rcc.hsi = Some(HSIPrescaler::DIV1);
+    //     config.rcc.csi = true;
+    //     config.rcc.pll1 = Some(Pll {
+    //         source: PllSource::HSI,
+    //         prediv: PllPreDiv::DIV4,
+    //         mul: PllMul::MUL50,
+    //         divp: Some(PllDiv::DIV2),
+    //         divq: Some(PllDiv::DIV8),
+    //         divr: None,
+    //     });
+    //     config.rcc.sys = Sysclk::PLL1_P;
+    //     config.rcc.ahb_pre = AHBPrescaler::DIV2;
+    //     config.rcc.apb1_pre = APBPrescaler::DIV2;
+    //     config.rcc.apb2_pre = APBPrescaler::DIV2;
+    //     config.rcc.apb3_pre = APBPrescaler::DIV2;
+    //     config.rcc.apb4_pre = APBPrescaler::DIV2;
+    //     config.rcc.voltage_scale = VoltageScale::Scale1;
+    //     config.rcc.supply_config = SupplyConfig::DirectSMPS;
+    // }
 
-    let p = embassy_stm32::init_primary(config, &SHARED_DATA);
+    // let p = embassy_stm32::init_primary(config, &SHARED_DATA);
 
-    info!("Embassy STM32 initialized!");
+    // pac::RCC.gcr().modify(|w|w.s);
+
+    info!("M7: Embassy STM32 initialized!");
 
     // embassy_stm32::pac::PWR.cpucr().modify(|w| w.set_cssf(val));
 
@@ -105,25 +108,26 @@ fn main() -> ! {
     //     p.
     // }
 
-    let mut led1 = Output::new(p.PB14, Level::High, Speed::Low);
-    let mut led2 = Output::new(p.PE1, Level::High, Speed::Low);
-    let mut led3 = Output::new(p.PB0, Level::High, Speed::Low);
+    // let mut led1 = Output::new(p.PB14, Level::High, Speed::Low);
+    // // let mut led2 = Output::new(p.PE1, Level::High, Speed::Low);
+    // let mut led3 = Output::new(p.PB0, Level::High, Speed::Low);
 
     loop {
-        info!("High");
-        led1.set_high();
-        cortex_m::asm::delay(1_000_00000);
-        led2.set_high();
-        cortex_m::asm::delay(1_000_00000);
-        led3.set_high();
-        cortex_m::asm::delay(1_000_00000);
-        info!("Low");
-        led1.set_low();
-        cortex_m::asm::delay(1_000_00000);
-        led2.set_low();
-        cortex_m::asm::delay(1_000_00000);
-        led3.set_low();
-        cortex_m::asm::delay(1_000_00000);
+        cortex_m::asm::nop();
+        // info!("High");
+        // led1.set_high();
+        // cortex_m::asm::delay(1_000_00000);
+        // // led2.set_high();
+        // cortex_m::asm::delay(1_000_00000);
+        // led3.set_high();
+        // cortex_m::asm::delay(1_000_00000);
+        // info!("Low");
+        // led1.set_low();
+        // cortex_m::asm::delay(1_000_00000);
+        // // led2.set_low();
+        // cortex_m::asm::delay(1_000_00000);
+        // led3.set_low();
+        // cortex_m::asm::delay(1_000_00000);
     }
 }
 
