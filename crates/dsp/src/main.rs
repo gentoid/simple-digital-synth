@@ -17,7 +17,30 @@ static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    pac::RCC.ahb4enr().modify(|w| w.set_hsemen(true));
+    pac::RCC.ahb4enr().modify(|w| {
+        w.set_hsemen(true);
+        w.set_bkpsramen(true);
+    });
+
+    pac::RCC.ahb2enr().modify(|w| {
+        w.set_sram1en(true);
+        w.set_sram2en(true);
+        w.set_sram3en(true);
+    });
+
+    pac::PWR.cr3().modify(|w| w.ldoen());
+    while !pac::PWR.csr1().read().actvosrdy() {}
+    
+    pac::PWR.cpucr().modify(|w| w.set_pdds_d2(false));
+
+    // pac::RCC.apb2rstr().modify(|w| w.);
+
+    pac::EXTI.emr(0).modify(|w| w.);
+
+    pac::RCC.ahb1enr().modify(|w| w.set_dma1en(true));
+
+    pac::RCC.ahb3enr().modify(|w| w.set_axisramen(true));
+    pac::RCC.c1_ahb4enr().modify(|w| w.set_gpioeen(true));
 
     let p = unsafe { embassy_stm32::Peripherals::steal() };
     let hsem = HardwareSemaphore::new(p.HSEM);
@@ -54,8 +77,14 @@ fn main() -> ! {
     }
 
     let p = embassy_stm32::init_primary(config, &SHARED_DATA);
-    
-    pac::RCC.c1_ahb4enr().modify(|w| w.set_gpioeen(true));
+    let r = unsafe { SHARED_DATA.assume_init_ref() };
+    let init_flag = r.init_flag.load(core::sync::atomic::Ordering::SeqCst);
+    info!("init_flag {}", init_flag);
+    // info!("SH D: {}", r)
+
+    cortex_m::asm::dsb();
+    cortex_m::asm::isb();
+    unsafe { flush_dcache() };
 
     pac::RCC.gcr().modify(|w| w.set_boot_c2(true));
 
@@ -65,26 +94,50 @@ fn main() -> ! {
     info!("M7: Embassy STM32 initialized!");
 
     let mut led1 = Output::new(p.PB14, Level::High, Speed::Low);
-    let mut led2 = Output::new(p.PE1, Level::High, Speed::Low);
+    // let mut led2 = Output::new(p.PE1, Level::High, Speed::Low);
     let mut led3 = Output::new(p.PB0, Level::High, Speed::Low);
 
     loop {
         // cortex_m::asm::nop();
-        info!("High");
+        // info!("High");
         led1.set_high();
-        cortex_m::asm::delay(100_000_000);
+        cortex_m::asm::delay(10_000_000);
         // led2.set_high();
-        cortex_m::asm::delay(100_000_000);
+        cortex_m::asm::delay(10_000_000);
         led3.set_high();
-        cortex_m::asm::delay(100_000_000);
-        info!("Low");
+        cortex_m::asm::delay(10_000_000);
+        // info!("Low");
         led1.set_low();
-        cortex_m::asm::delay(100_000_000);
+        cortex_m::asm::delay(10_000_000);
         // led2.set_low();
-        cortex_m::asm::delay(100_000_000);
+        cortex_m::asm::delay(10_000_000);
         led3.set_low();
-        cortex_m::asm::delay(100_000_000);
+        cortex_m::asm::delay(10_000_000);
     }
+}
+
+unsafe fn flush_dcache() {
+    const SCB_BASE: u32 = 0xE000ED00;
+    const SCB_CCSIDR: *const u32 = (SCB_BASE + 0x80 + 0x04) as *const u32;
+    const SCB_CSSELR: *mut u32 = (SCB_BASE + 0x80 + 0x00) as *mut u32;
+    const SCB_DCCISW: *mut u32 = (SCB_BASE + 0x80 + 0x0C) as *mut u32;
+
+    unsafe { SCB_CSSELR.write_volatile(0) }; // Select Level 1 data cache
+    cortex_m::asm::dsb();
+
+    let ccsidr = unsafe { SCB_CCSIDR.read_volatile() };
+    let sets = ((ccsidr >> 13) & 0x7fff) + 1;
+    let ways = ((ccsidr >> 3) & 0x3ff) + 1;
+
+    for set in 0..sets {
+        for way in 0..ways {
+            let sw = (way << 30) | (set << 5);
+            unsafe { SCB_DCCISW.write_volatile(sw) };
+        }
+    }
+
+    cortex_m::asm::dsb();
+    cortex_m::asm::isb();
 }
 
 // #[cortex_m_rt::interrupt]

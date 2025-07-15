@@ -4,7 +4,7 @@ connect_under_reset = true
 log_level = "INFO"
 
 [default.rtt]
-enabled = true
+enabled = false
 up_channels = [
     { channel = 0, mode = "BlockIfFull", format = "Defmt", show_location = true },
 ]
@@ -12,6 +12,12 @@ up_channels = [
 [default.reset]
 enabled = true
 halt_afterwards = false
+
+[gdb.gdb]
+enabled = true
+
+[gdb.rtt]
+enabled = false
 
 # [firmware]
 # files = [

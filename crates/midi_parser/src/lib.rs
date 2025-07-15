@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
-use panic_probe as _;
+use panic_halt as _;
 
 pub mod parser;
 pub mod tables;

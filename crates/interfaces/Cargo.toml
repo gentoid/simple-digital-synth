@@ -6,16 +6,24 @@ edition = "2024"
 [dependencies]
 embassy-stm32 = { version = "0.2.0", features = [
     "stm32h755zi-cm4",
+    "time",
+    "time-driver-any",
     "exti",
+] }
+embassy-time = { version = "0.4.0" }
+embassy-executor = { version = "0.7.0", features = [
+    "arch-cortex-m",
+    "executor-thread",
+    # "defmt",
 ] }
 mcu_common = { path = "../mcu_common", features = ["cm4"] }
 
 cortex-m = { version = "0.7.7", features = ["critical-section"] }
 cortex-m-rt = "0.7.5"
 critical-section = "1.2"
-defmt = "1.0"
-defmt-rtt = "1.0"
-panic-probe = { version = "1.0", features = ["print-defmt"] }
+# defmt = "1.0"
+# defmt-rtt = "1.0"
+panic-halt = { version = "1.0" }
 midi_parser = { path = "../midi_parser" }
 heapless = "0.8.0"
 

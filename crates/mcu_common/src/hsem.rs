@@ -29,10 +29,11 @@ static HSEM_CELL: HsemCell = HsemCell {
 pub struct HsemCriticalSection;
 
 pub fn init_hsem_driver(hsem: HardwareSemaphore<'static, HSEM>) {
-    if INITIALIZED.swap(true, Ordering::SeqCst) {
-        // already initialized
-        return;
-    }
+    // if INITIALIZED.swap(true, Ordering::SeqCst) {
+    //     panic!("oops");
+    //     // already initialized
+    //     return;
+    // }
 
     unsafe {
         *HSEM_CELL.inner.get() = Some(hsem);
@@ -41,7 +42,7 @@ pub fn init_hsem_driver(hsem: HardwareSemaphore<'static, HSEM>) {
 
 fn hsem() -> &'static mut HardwareSemaphore<'static, HSEM> {
     let inner = unsafe { &mut *HSEM_CELL.inner.get() };
-    inner.as_mut().expect("HSEM is not initialized")
+    inner.as_mut().unwrap()
 }
 
 unsafe impl critical_section::Impl for HsemCriticalSection {

@@ -19,6 +19,12 @@ halt_afterwards = true
 #     # { path = "../interfaces/target/thumbv7em-none-eabihf/release/interfaces", address = "0x08100000" }
 # ]
 
+[gdb.gdb]
+enabled = true
+
+[gdb.rtt]
+enabled = false
+
 [connect.general]
 connect_under_reset = false
 

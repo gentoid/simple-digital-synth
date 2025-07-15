@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 heapless = "0.8"
-panic-probe = { version = "1.0", features = ["print-defmt"]}
+panic-halt = { version = "1.0"}
 
 [features]
 default = []

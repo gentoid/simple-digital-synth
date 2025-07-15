@@ -7,8 +7,7 @@ MEMORY
 
 SECTIONS {
     .ram_d3 (NOLOAD) : ALIGN(4) {
-        *(.ram_d3.shared_data)
-        *(.ram_d3)
+        *(.ram_d3 .ram_d3.shared_data .ram_d3.*);
         . = ALIGN(4);
     } > RAM_D3
 }

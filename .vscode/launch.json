@@ -115,8 +115,8 @@
             "device": "STM32H755ZIT6",
             "configFiles": [
                 "interface/stlink.cfg",
-                "./openocd.cfg",
-                // "target/stm32h7x_dual_bank.cfg"
+                // "./openocd.cfg",
+                "target/stm32h7x_dual_bank.cfg"
             ],
             // "chainedConfigurations": {
             //     "enabled": true,
@@ -129,8 +129,8 @@
             //     ]
             // },
             "svdFile": "./stm32/STM32H755_CM7.svd",
-            "preLaunchTask": "build-m7 (debug)",
-            "showDevDebugOutput": "raw",
+            // "preLaunchTask": "build-m7 (debug)",
+            // "showDevDebugOutput": "raw",
             // "liveWatch": {
             //     "enabled": true,
             //     "samplesPerSecond": 4
