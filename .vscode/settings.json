@@ -10,6 +10,10 @@
         "crates/interfaces/Cargo.toml",
         "crates/midi_parser/Cargo.toml"
     ],
+    "rust-analyzer.checkOnSave.allTargets": false,
+    "rust-analyzer.checkOnSave.extraArgs": [
+        "--bins"
+    ],
     "cSpell.words": [
         "afrh",
         "ccdr",

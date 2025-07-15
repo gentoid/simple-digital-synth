@@ -1,9 +1,16 @@
 [build]
 target = "thumbv7em-none-eabihf"
 
+
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+runner = "probe-rs run --chip STM32H755ZI"
 rustflags = [
+    "-C", "linker=flip-link",
     "-C", "link-arg=-Tlink.x",
-    # "-C", "link-arg=-Tdefmt.x",
+    "-C", "link-arg=-Tdefmt.x",
+    # This is needed if your flash or ram addresses are not aligned to 0x10000 in memory.x
+    # See https://github.com/rust-embedded/cortex-m-quickstart/pull/95
+    # "-C", "link-arg=--nmagic",
 ]
 
 [unstable]
@@ -11,3 +18,9 @@ build-std = ["core"]
 
 [env]
 DEFMT_LOG = "debug"
+
+[alias]
+rb = "run --bin"
+bb = "build --bin"
+rrb = "run --release --bin"
+bbr = "build --release --bin"
