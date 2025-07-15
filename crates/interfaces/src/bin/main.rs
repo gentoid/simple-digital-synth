@@ -2,7 +2,17 @@
 #![no_std]
 #![feature(type_alias_impl_trait)]
 
+use embassy_stm32::hsem::HardwareSemaphore;
 use interfaces as _; // global logger + panicking-behavior + memory layout
+
+#[cortex_m_rt::pre_init]
+unsafe fn setup_critical_section() {
+    let p = unsafe { embassy_stm32::Peripherals::steal() };
+    let hsem = HardwareSemaphore::new(p.HSEM);
+
+    mcu_common::hsem::init_hsem_driver(hsem);
+    critical_section::set_impl!(mcu_common::hsem::HsemCriticalSection);
+}
 
 // TODO: Replace the `FreeInterrupt1, ...` with free interrupt vectors if software tasks are used
 // You can usually find the names of the interrupt vectors in the some_hal::pac::interrupt enum.
