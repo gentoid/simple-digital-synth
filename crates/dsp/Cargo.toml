@@ -11,7 +11,8 @@ mcu_common = { path = "../mcu_common", features = ["cm7"] }
 stm32h7xx-hal = { version = "*", features = ["stm32h747cm7"] }
 libm = "0.2.15"
 # defmt-rtt = "1.0"
-panic-probe = { version = "1.0", features = ["print-defmt"] }
+panic-halt = { version = "1.0" }
+# panic-probe = { version = "1.0", features = ["print-defmt"] }
 heapless = "0.8.0"
 rtic = { version = "2.2", features = ["thumbv7-backend"] }
 defmt = { version = "1.0", features = ["encoding-rzcobs"] }

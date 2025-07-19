@@ -6,7 +6,7 @@ use defmt_brtt as _; // global logger
 
 use panic_halt as _;
 
-use embassy_stm32 as _; // memory layout
+use stm32h7xx_hal as _; // memory layout
 
 // pub mod encoder;
 

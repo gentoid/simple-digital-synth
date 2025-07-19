@@ -2,19 +2,11 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use core::mem::MaybeUninit;
-
-use defmt::info;
-use {defmt_rtt as _, panic_probe as _};
-
-#[unsafe(link_section = ".ram_d3.shared_data")]
-static SHARED_DATA: MaybeUninit<SharedData> = MaybeUninit::uninit();
-
-use interfaces as _; // global logger + panicking-behavior + memory layout
+use dsp as _; // global logger + panicking-behavior + memory layout
 
 // TODO: Replace the `FreeInterrupt1, ...` with free interrupt vectors if software tasks are used
 // You can usually find the names of the interrupt vectors in the some_hal::pac::interrupt enum.
-#[rtic::app(device = embassy_stm32, dispatchers = [EXTI1])]
+#[rtic::app(device = stm32h7xx_hal::stm32, dispatchers = [EXTI1])]
 mod app {
     #[shared]
     struct Shared {
