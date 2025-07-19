@@ -26,5 +26,6 @@ cm4 = ["dep:embassy-stm32", "embassy-stm32/stm32h755zi-cm4"]
 cm7 = ["dep:embassy-stm32", "embassy-stm32/stm32h755zi-cm7"]
 dual-core = ["critical-section/restore-state-u32"]
 single-core = ["critical-section/restore-state-bool"]
+hsem = []
 
 ra = ["cm7", "single-core"]
