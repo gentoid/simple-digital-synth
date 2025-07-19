@@ -4,33 +4,52 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cortex-m = { version = "0.7.7", features = ["critical-section"] }
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.5"
 mcu_common = { path = "../mcu_common", features = ["cm7"] }
-critical-section = "1.2"
+# critical-section = "1.2"
+stm32h7xx-hal = { version = "*", features = ["stm32h747cm7"] }
 libm = "0.2.15"
-defmt = "1.0"
-defmt-rtt = "1.0"
+# defmt-rtt = "1.0"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
 heapless = "0.8.0"
-embassy-stm32 = { version = "0.2.0", features = [
-    "rt",
-    "stm32h755zi-cm7",
-    "unstable-pac",
-    "exti",
-] }
+rtic = { version = "2.2", features = ["thumbv7-backend"] }
+defmt = { version = "1.0", features = ["encoding-rzcobs"] }
+defmt-brtt = { version = "0.1.1", default-features = false, features = ["rtt"] }
 
 [profile.dev]
 codegen-units = 1
-debug = true
-lto = false
-opt-level = 0
+debug = 2
+debug-assertions = true # <-
+incremental = false
+opt-level = "s" # <-
+overflow-checks = true # <-
+
+[profile.test]
+codegen-units = 1
+debug = 2
+debug-assertions = true # <-
+incremental = false
+opt-level = "s" # <-
+overflow-checks = true # <-
 
 [profile.release]
 codegen-units = 1
-debug = false
-lto = true
-opt-level = "z"
+debug = 2
+debug-assertions = false # <-
+incremental = false
+lto = 'fat'
+opt-level = "s" # <-
+overflow-checks = false # <-
+
+[profile.bench]
+codegen-units = 1
+debug = 2
+debug-assertions = false # <-
+incremental = false
+lto = 'fat'
+opt-level = "s" # <-
+overflow-checks = false # <-
 
 [features]
 default = []
