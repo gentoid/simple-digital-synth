@@ -9,7 +9,7 @@ mcu_common = { path = "../mcu_common", features = ["cm4"] }
 cortex-m = { version = "0.7.7", features = ["critical-section"] }
 cortex-m-rt = "0.7.5"
 critical-section = "1.2"
-embassy-stm32 = { version = "0.2.0", features = ["stm32h755zi-cm4", "unstable-pac"] }
+# embassy-stm32 = { version = "0.2.0", features = ["stm32h755zi-cm4", "unstable-pac"] }
 defmt = { version = "1.0", features = ["encoding-rzcobs"] }
 defmt-brtt = { version = "0.1.1", default-features = false, features = ["rtt"] }
 # defmt-rtt = "1.0"

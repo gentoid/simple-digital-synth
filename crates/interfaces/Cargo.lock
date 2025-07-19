@@ -453,7 +453,6 @@ dependencies = [
  "critical-section",
  "defmt 1.0.1",
  "defmt-brtt",
- "embassy-stm32",
  "heapless",
  "mcu_common",
  "midi_parser",
