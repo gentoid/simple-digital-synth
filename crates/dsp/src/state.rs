@@ -33,11 +33,11 @@ impl State {
         }
     }
 
-    pub fn adjust(&mut self, param: &EncoderParam, rotation: Rotation) {
-        match param {
-            // EncoderParam::Osc(param) => self.oscillator.adjust(param, rotation),
-            EncoderParam::Filter(param) => self.filter.adjust(param, rotation),
-        }
+    pub fn adjust(&mut self, _param: &EncoderParam, _rotation: Rotation) {
+        // match param {
+        //     // EncoderParam::Osc(param) => self.oscillator.adjust(param, rotation),
+        //     // EncoderParam::Filter(param) => self.filter.adjust(param, rotation),
+        // }
     }
 
     pub fn next_sample(&mut self) -> f32 {

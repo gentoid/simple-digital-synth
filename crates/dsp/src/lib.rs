@@ -8,7 +8,13 @@ use panic_halt as _;
 
 use stm32h7xx_hal as _; // memory layout
 
-// pub mod encoder;
+pub mod adsr;
+pub mod consts;
+pub mod encoder;
+pub mod filter;
+pub mod oscillator;
+pub mod state;
+pub mod voice;
 
 // same panicking *behavior* as `panic-probe` but doesn't print a panic message
 // this prevents the panic message being printed *twice* when `defmt::panic` is invoked

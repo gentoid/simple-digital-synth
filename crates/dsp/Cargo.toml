@@ -17,22 +17,23 @@ heapless = "0.8.0"
 rtic = { version = "2.2", features = ["thumbv7-backend"] }
 defmt = { version = "1.0", features = ["encoding-rzcobs"] }
 defmt-brtt = { version = "0.1.1", default-features = false, features = ["rtt"] }
+midi_parser = { path = "../midi_parser" }
 
 [profile.dev]
 codegen-units = 1
 debug = 2
 debug-assertions = true # <-
 incremental = false
-opt-level = "s" # <-
-overflow-checks = true # <-
+opt-level = "s"         # <-
+overflow-checks = true  # <-
 
 [profile.test]
 codegen-units = 1
 debug = 2
 debug-assertions = true # <-
 incremental = false
-opt-level = "s" # <-
-overflow-checks = true # <-
+opt-level = "s"         # <-
+overflow-checks = true  # <-
 
 [profile.release]
 codegen-units = 1
@@ -40,8 +41,8 @@ debug = 2
 debug-assertions = false # <-
 incremental = false
 lto = 'fat'
-opt-level = "s" # <-
-overflow-checks = false # <-
+opt-level = "s"          # <-
+overflow-checks = false  # <-
 
 [profile.bench]
 codegen-units = 1
@@ -49,8 +50,8 @@ debug = 2
 debug-assertions = false # <-
 incremental = false
 lto = 'fat'
-opt-level = "s" # <-
-overflow-checks = false # <-
+opt-level = "s"          # <-
+overflow-checks = false  # <-
 
 [features]
 default = []

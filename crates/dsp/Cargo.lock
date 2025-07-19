@@ -202,6 +202,7 @@ dependencies = [
  "heapless",
  "libm",
  "mcu_common",
+ "midi_parser",
  "panic-halt",
  "rtic",
  "stm32h7xx-hal",
@@ -514,6 +515,14 @@ version = "0.1.0"
 dependencies = [
  "critical-section",
  "embassy-stm32",
+]
+
+[[package]]
+name = "midi_parser"
+version = "0.1.0"
+dependencies = [
+ "heapless",
+ "panic-halt",
 ]
 
 [[package]]
