@@ -42,29 +42,4 @@ impl State {
     pub fn is_active(&self) -> bool {
         self.voice_pool.is_active()
     }
-
-    // pub fn process_midi_byte(&mut self, byte: u8) {
-    //     self.parser.process_midi_byte(byte);
-    //     if self.parser.message_kind().is_none() {
-    //         return;
-    //     }
-
-    //     if self.parser.in_progress() {
-    //         return;
-    //     }
-
-    //     use MidiMessageKind::*;
-
-    //     match self.parser.message_kind().as_ref().unwrap() {
-    //         NoteOn(note, velocity) if velocity.0 > 0 => {
-    //             info!("Start note: {} with velocity: {}", note.num, velocity.0);
-    //             self.voice_pool.on_note_on(note.clone());
-    //         }
-    //         NoteOff(note, velocity) | NoteOn(note, velocity) => {
-    //             info!("Stop note: {} with velocity: {}", note.num, velocity.0);
-    //             self.voice_pool.on_note_off(note);
-    //         }
-    //         _ => {}
-    //     }
-    // }
 }

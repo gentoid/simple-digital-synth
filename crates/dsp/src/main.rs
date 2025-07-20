@@ -20,10 +20,10 @@ mod app {
         timer::{Event, Timer},
     };
 
-    const MIDI_IN_MSG_CAPACITY: usize = 8;
+    const MIDI_RX_CAPACITY: usize = 8;
 
-    type MidiRxSender = channel::Sender<'static, u8, MIDI_IN_MSG_CAPACITY>;
-    type MidiRxReceiver = channel::Receiver<'static, u8, MIDI_IN_MSG_CAPACITY>;
+    type MidiRxSender = channel::Sender<'static, u8, MIDI_RX_CAPACITY>;
+    type MidiRxReceiver = channel::Receiver<'static, u8, MIDI_RX_CAPACITY>;
 
     #[shared]
     struct Shared {}
@@ -75,7 +75,7 @@ mod app {
         rx.listen();
 
         // MIDI IN channel
-        let (midi_rx_send, midi_rx_recv) = make_channel!(u8, MIDI_IN_MSG_CAPACITY);
+        let (midi_rx_send, midi_rx_recv) = make_channel!(u8, MIDI_RX_CAPACITY);
 
         // Spawn tasks
         process_midi_bytes::spawn(midi_rx_recv).unwrap();
@@ -139,7 +139,7 @@ mod app {
     #[task(priority = 7, local = [midi_parser])]
     async fn process_midi_bytes(cx: process_midi_bytes::Context, mut recv: MidiRxReceiver) {
         while let Ok(byte) = recv.recv().await {
-            cx.local.midi_parser.process_midi_byte(byte);
+            cx.local.midi_parser.process(byte);
             // todo what next?
         }
 

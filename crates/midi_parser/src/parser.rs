@@ -3,7 +3,7 @@ use heapless::Vec;
 
 use crate::tables::MIDI_FREQS;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Note {
     pub num: u8,
     pub freq: f32,
@@ -24,7 +24,7 @@ impl PartialEq for Note {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Velocity(pub u8);
 
 #[derive(Debug, PartialEq)]
@@ -40,7 +40,7 @@ pub struct ProgramNumber(u8);
 pub struct PitchBendValue(u16);
 
 #[derive(Debug, PartialEq)]
-pub enum MidiMessageKind {
+pub enum MidiMessage {
     NoteOff(Note, Velocity),
     NoteOn(Note, Velocity),
     PolyphonicAT(Note, Velocity),
@@ -51,9 +51,9 @@ pub enum MidiMessageKind {
     SysEx,
 }
 
-impl MidiMessageKind {
+impl MidiMessage {
     pub fn from_byte(byte: &u8) -> Self {
-        use MidiMessageKind::*;
+        use MidiMessage::*;
 
         match byte & 0xF0 {
             0x80 => NoteOff(Note::new(0), Velocity(0)),
@@ -130,8 +130,8 @@ impl MidiChannel {
 
 #[derive(Debug)]
 pub struct RunningStatus {
-    message_kind: Option<MidiMessageKind>,
-    message_reading: Option<MidiMessageKind>,
+    message: Option<MidiMessage>,
+    message_reading: Option<MidiMessage>,
     midi_channel: MidiChannel,
     #[cfg(feature = "std")]
     data_buffer: Vec<u8>,
@@ -143,7 +143,7 @@ pub struct RunningStatus {
 impl RunningStatus {
     pub const fn new(midi_channel: MidiChannel) -> Self {
         Self {
-            message_kind: None,
+            message: None,
             message_reading: None,
             midi_channel,
             data_buffer: Vec::new(),
@@ -151,12 +151,43 @@ impl RunningStatus {
         }
     }
 
-    pub fn message_kind(&self) -> &Option<MidiMessageKind> {
-        &self.message_kind
+    pub fn message_kind(&self) -> &Option<MidiMessage> {
+        &self.message
     }
 
     pub fn in_progress(&self) -> bool {
         self.message_reading.is_some()
+    }
+
+    pub fn process(&mut self, byte: u8) -> Option<MidiMessage> {
+        self.process_midi_byte(byte);
+
+        if self.in_progress() {
+            return None;
+        }
+
+        use MidiMessage::*;
+
+        if let Some(msg) = self.message_kind().as_ref() {
+            match msg {
+                NoteOn(note, velocity) if velocity.0 > 0 => {
+                    // info!("Start note: {} with velocity: {}", note.num, velocity.0);
+                    // self.voice_pool.on_note_on(note.clone());
+                    return Some(NoteOn(*note, *velocity));
+                }
+                NoteOff(note, velocity) | NoteOn(note, velocity) => {
+                    // info!("Stop note: {} with velocity: {}", note.num, velocity.0);
+                    // self.voice_pool.on_note_off(note);
+                    return Some(NoteOff(*note, *velocity));
+                }
+                _ => {
+                    // todo Implement the other cases as well
+                    return None;
+                }
+            }
+        }
+
+        None
     }
 
     pub fn process_midi_byte(&mut self, byte: u8) {
@@ -170,18 +201,18 @@ impl RunningStatus {
             return;
         }
 
-        let msg_kind = MidiMessageKind::from_byte(&byte);
+        let msg_kind = MidiMessage::from_byte(&byte);
         self.bytes_to_read = msg_kind.bytes_requires();
         self.message_reading = Some(msg_kind);
     }
 
     fn process_data_byte(&mut self, byte: u8) {
-        use MidiMessageKind::*;
+        use MidiMessage::*;
 
         if self
             .message_reading
             .as_ref()
-            .or(self.message_kind.as_ref())
+            .or(self.message.as_ref())
             .is_none()
         {
             return;
@@ -201,7 +232,7 @@ impl RunningStatus {
         match self
             .message_reading
             .as_mut()
-            .or_else(|| self.message_kind.as_mut())
+            .or_else(|| self.message.as_mut())
             .unwrap()
         {
             NoteOff(note, velocity) | NoteOn(note, velocity) | PolyphonicAT(note, velocity) => {
@@ -224,7 +255,7 @@ impl RunningStatus {
         }
 
         if self.message_reading.is_some() {
-            self.message_kind = self.message_reading.take();
+            self.message = self.message_reading.take();
         }
 
         self.data_buffer.clear();
@@ -290,7 +321,7 @@ pub const fn midi_note_to_freq(note: u8) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use MidiMessageKind::*;
+    use MidiMessage::*;
 
     #[test]
     fn parser_ignores_messages_for_another_channels() {
