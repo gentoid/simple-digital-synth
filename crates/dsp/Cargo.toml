@@ -15,6 +15,7 @@ panic-halt = { version = "1.0" }
 # panic-probe = { version = "1.0", features = ["print-defmt"] }
 heapless = "0.8.0"
 rtic = { version = "2.2", features = ["thumbv7-backend"] }
+rtic-sync = { version = "1.4"}
 defmt = { version = "1.0", features = ["encoding-rzcobs"] }
 defmt-brtt = { version = "0.1.1", default-features = false, features = ["rtt"] }
 midi_parser = { path = "../midi_parser" }
