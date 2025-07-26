@@ -12,6 +12,8 @@ pub mod adsr;
 pub mod consts;
 pub mod encoder;
 pub mod filter;
+pub mod i2c_scanner;
+pub mod lcd;
 pub mod oscillator;
 pub mod state;
 pub mod voice;

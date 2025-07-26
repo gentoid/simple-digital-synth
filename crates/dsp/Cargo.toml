@@ -6,19 +6,25 @@ edition = "2024"
 [dependencies]
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.5"
-mcu_common = { path = "../mcu_common", features = ["cm7"] }
+# mcu_common = { path = "../mcu_common", features = ["cm7"] }
 # critical-section = "1.2"
-stm32h7xx-hal = { version = "*", features = ["stm32h747cm7"] }
+stm32h7xx-hal = { version = "*", features = ["stm32h747cm7", "defmt"] }
 libm = "0.2.15"
 # defmt-rtt = "1.0"
 panic-halt = { version = "1.0" }
 # panic-probe = { version = "1.0", features = ["print-defmt"] }
 heapless = "0.8.0"
 rtic = { version = "2.2", features = ["thumbv7-backend"] }
-rtic-sync = { version = "1.4"}
+rtic-sync = { version = "1.4" }
 defmt = { version = "1.0", features = ["encoding-rzcobs"] }
 defmt-brtt = { version = "0.1.1", default-features = false, features = ["rtt"] }
 midi_parser = { path = "../midi_parser" }
+# pcf857x = "0.5.0"
+# port-expander = "0.6.5"
+# i2c-character-display = { version = "0.5.0", features = ["defmt"] }
+# hd44780-driver = { git = "https://github.com/JohnDoneth/hd44780-driver", rev = "9009f2c" }
+embedded-hal = "0.2"
+# embedded-hal-compat = "0.13.0"
 
 [profile.dev]
 codegen-units = 1
