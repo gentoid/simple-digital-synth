@@ -27,19 +27,19 @@ impl PartialEq for Note {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Velocity(pub u8);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ControlNum(u8);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ControlVal(u8);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ProgramNumber(u8);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct PitchBendValue(u16);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum MidiMessage {
     NoteOff(Note, Velocity),
     NoteOn(Note, Velocity),
@@ -129,7 +129,7 @@ impl MidiChannel {
 }
 
 #[derive(Debug)]
-pub struct RunningStatus {
+pub struct MidiParser {
     message: Option<MidiMessage>,
     message_reading: Option<MidiMessage>,
     midi_channel: MidiChannel,
@@ -140,7 +140,7 @@ pub struct RunningStatus {
     bytes_to_read: usize,
 }
 
-impl RunningStatus {
+impl MidiParser {
     pub const fn new(midi_channel: MidiChannel) -> Self {
         Self {
             message: None,
@@ -180,10 +180,7 @@ impl RunningStatus {
                     // self.voice_pool.on_note_off(note);
                     return Some(NoteOff(*note, *velocity));
                 }
-                _ => {
-                    // todo Implement the other cases as well
-                    return None;
-                }
+                _ => return Some(msg.clone()),
             }
         }
 
@@ -326,7 +323,7 @@ mod tests {
     #[test]
     fn parser_ignores_messages_for_another_channels() {
         let ch = MidiChannel::Ch2;
-        let mut rs = RunningStatus::new(ch);
+        let mut rs = MidiParser::new(ch);
 
         rs.process_midi_byte(0x80);
         assert_status_is_init(&rs, ch);
@@ -356,7 +353,7 @@ mod tests {
         assert_status_is_init(&rs, ch);
     }
 
-    fn assert_status_is_init(rs: &RunningStatus, channel: MidiChannel) {
+    fn assert_status_is_init(rs: &MidiParser, channel: MidiChannel) {
         assert_eq!(rs.midi_channel, channel);
         assert_eq!(rs.bytes_to_read, 0);
         assert_eq!(rs.message_kind, None);
@@ -365,7 +362,7 @@ mod tests {
     #[test]
     fn note_on() {
         let ch = MidiChannel::Ch11;
-        let mut rs = RunningStatus::new(ch);
+        let mut rs = MidiParser::new(ch);
 
         rs.process_midi_byte(0x9A);
         assert_eq!(rs.message_kind, None);
@@ -377,7 +374,7 @@ mod tests {
     #[test]
     fn running_status() {
         let ch = MidiChannel::Ch5;
-        let mut rs = RunningStatus::new(ch);
+        let mut rs = MidiParser::new(ch);
 
         rs.process_midi_byte(0x94);
         assert_eq!(rs.message_kind, None);

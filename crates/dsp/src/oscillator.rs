@@ -46,10 +46,10 @@ pub struct Oscillator {
 }
 
 impl Oscillator {
-    pub const fn new(note: Note) -> Self {
+    pub const fn new(note: &Note) -> Self {
         let mut this = Self {
             osc_type: WaveType::SawTooth,
-            note,
+            note: *note,
             phase: 0.0,
             sample_rate: SAMPLE_RATE,
             phase_inc: 0.0,

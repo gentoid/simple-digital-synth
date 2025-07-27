@@ -1,4 +1,3 @@
-use defmt::debug;
 use heapless::Vec;
 use midi_parser::parser::Note;
 
@@ -14,7 +13,7 @@ struct Voice {
 }
 
 impl Voice {
-    fn new(envelope: Envelope, note: Note) -> Self {
+    fn new(envelope: Envelope, note: &Note) -> Self {
         Self {
             envelope,
             oscillator: Oscillator::new(note),
@@ -72,12 +71,12 @@ impl VoicePool {
         total
     }
 
-    pub fn on_note_on(&mut self, note: Note) {
+    pub fn on_note_on(&mut self, note: &Note) {
         let mut voice = Voice::new(self.envelope.clone(), note);
         voice.note_on();
 
         if self.voices.len() <= self.next_voice_index {
-            self.voices.push(voice);
+            self.voices.push(voice).ok(); // todo handle Result
         } else {
             self.voices[self.next_voice_index] = voice;
         }

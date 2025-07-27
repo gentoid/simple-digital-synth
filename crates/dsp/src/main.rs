@@ -6,32 +6,27 @@ use dsp as _; // global logger + panicking-behavior + memory layout
 
 #[rtic::app(device = stm32h7xx_hal::pac, dispatchers = [EXTI1], peripherals = true)]
 mod app {
-    use defmt::warn;
-    use dsp::{lcd::HD44780, state::State};
-    use midi_parser::parser::{MidiChannel, RunningStatus};
-    use rtic_sync::{channel, make_channel};
+    use dsp::{lcd::HD44780, midi::MidiRxReceiver, state::State};
+    use midi_parser::parser::{MidiChannel, MidiParser};
+    use rtic_sync::{channel::ReceiveError, make_channel};
     use stm32h7xx_hal::{
-        i2c, nb, pac,
+        i2c, pac,
         prelude::*,
         serial,
         timer::{Event, Timer},
     };
 
-    const MIDI_RX_CAPACITY: usize = 8;
-
-    type MidiRxSender = channel::Sender<'static, u8, MIDI_RX_CAPACITY>;
-    type MidiRxReceiver = channel::Receiver<'static, u8, MIDI_RX_CAPACITY>;
-
     #[shared]
-    struct Shared {}
+    struct Shared {
+        state: State,
+    }
 
     #[local]
     struct Local {
-        state: State,
         sample_timer: pac::TIM2,
         midi_rx: serial::Rx<pac::USART3>,
-        midi_parser: RunningStatus,
-        midi_rx_send: MidiRxSender,
+        midi_parser: MidiParser,
+        midi_rx_send: dsp::midi::MidiRxSender,
         lcd: HD44780<i2c::I2c<pac::I2C1>, cortex_m::delay::Delay>,
     }
 
@@ -77,7 +72,7 @@ mod app {
         rx.listen();
 
         // MIDI IN channel
-        let (midi_rx_send, midi_rx_recv) = make_channel!(u8, MIDI_RX_CAPACITY);
+        let (midi_rx_send, midi_rx_recv) = make_channel!(u8, { dsp::midi::MIDI_RX_CAPACITY });
 
         // LCD
         let scl = gpiob.pb8.into_alternate().set_open_drain();
@@ -94,12 +89,13 @@ mod app {
         lcd_task::spawn().unwrap();
 
         (
-            Shared {},
-            Local {
+            Shared {
                 state: State::new(),
+            },
+            Local {
                 sample_timer,
                 midi_rx: rx,
-                midi_parser: RunningStatus::new(MidiChannel::Ch1),
+                midi_parser: MidiParser::new(MidiChannel::Ch1),
                 midi_rx_send,
                 lcd,
             },
@@ -115,49 +111,39 @@ mod app {
         }
     }
 
-    #[task(binds = TIM2, priority = 9, local = [sample_timer, state])]
-    fn generator(cx: generator::Context) {
+    #[task(binds = TIM2, priority = 9, local = [sample_timer], shared = [state])]
+    fn generator(mut cx: generator::Context) {
         let tim = cx.local.sample_timer;
         tim.sr.modify(|_, w| w.uif().clear_bit());
 
-        cx.local.state.next_sample();
+        // todo send over to I2S
+        cx.shared.state.lock(|state| state.next_sample());
     }
 
     #[task(binds = USART3, priority = 8, local = [midi_rx, midi_rx_send])]
     fn midi_rx(cx: midi_rx::Context) {
-        match cx.local.midi_rx.read() {
-            Ok(byte) => {
-                match cx.local.midi_rx_send.try_send(byte) {
-                    Ok(()) => {}
-                    Err(channel::TrySendError::NoReceiver(_)) => {
-                        // todo handle the case
-                    }
-                    Err(channel::TrySendError::Full(_)) => {
-                        // todo handle the case
-                    }
-                };
-            }
-            Err(err) => match err {
-                nb::Error::Other(err) => match err {
-                    serial::Error::Framing => warn!("Error: Framing"),
-                    serial::Error::Noise => warn!("Error: Noise"),
-                    serial::Error::Overrun => warn!("Error: Overrun"),
-                    serial::Error::Parity => warn!("Error: Parity"),
-                    _ => warn!("Error: unknown"),
-                },
-                nb::Error::WouldBlock => warn!("Would block"),
-            },
-        }
+        dsp::midi::enqueue_midi_processing(cx.local.midi_rx, cx.local.midi_rx_send);
     }
 
-    #[task(priority = 7, local = [midi_parser])]
-    async fn process_midi_bytes(cx: process_midi_bytes::Context, mut recv: MidiRxReceiver) {
-        while let Ok(byte) = recv.recv().await {
-            cx.local.midi_parser.process(byte);
-            // todo what next?
+    #[task(priority = 7, local = [midi_parser], shared = [state])]
+    async fn process_midi_bytes(mut cx: process_midi_bytes::Context, mut recv: MidiRxReceiver) {
+        loop {
+            match recv.recv().await {
+                Ok(byte) => {
+                    if let Some(msg) = cx.local.midi_parser.process(byte) {
+                        cx.shared.state.lock(|state| state.process_midi_msg(&msg));
+                    }
+                }
+                Err(ReceiveError::Empty) => {
+                    defmt::warn!("MIDI RX: the queue is empty");
+                    // todo delay or break?
+                }
+                Err(ReceiveError::NoSender) => {
+                    defmt::warn!("MIDI RX channel closed");
+                    break;
+                }
+            }
         }
-
-        // todo what if Err?
     }
 
     #[task(priority = 7, local = [lcd])]

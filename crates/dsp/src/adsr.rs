@@ -27,6 +27,7 @@ pub enum Phase {
 #[derive(Clone)]
 pub struct Envelope {
     config: Adsr,
+    #[allow(unused)]
     sample_rate: f32,
     current_value: f32,
     phase: Phase,

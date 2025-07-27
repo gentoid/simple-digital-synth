@@ -1,7 +1,8 @@
+use midi_parser::parser::MidiMessage;
+
 use crate::{
     adsr::{self, TimeMs},
     consts::SAMPLE_RATE,
-    encoder::{EncoderParam, Rotation},
     filter::Filter,
     voice::VoicePool,
 };
@@ -28,18 +29,33 @@ impl State {
         }
     }
 
-    pub fn adjust(&mut self, _param: &EncoderParam, _rotation: Rotation) {
-        // match param {
-        //     // EncoderParam::Osc(param) => self.oscillator.adjust(param, rotation),
-        //     // EncoderParam::Filter(param) => self.filter.adjust(param, rotation),
-        // }
-    }
-
     pub fn next_sample(&mut self) -> f32 {
         self.voice_pool.next_sample()
     }
 
     pub fn is_active(&self) -> bool {
         self.voice_pool.is_active()
+    }
+
+    pub fn process_midi_msg(&mut self, msg: &MidiMessage) {
+        use MidiMessage::*;
+        match msg {
+            NoteOn(note, _velocity) => self.voice_pool.on_note_on(note), // todo velocity
+            NoteOff(note, _velocity) => self.voice_pool.on_note_off(note), // todo velocity
+            // CC(num, val) => {
+            //     match controller {
+            //         74 => {
+            //             let cutoff = map_cc_to_cutoff(value);
+            //             state.filter.cutoff = cutoff;
+            //         }
+            //         71 => {
+            //             let resonance = map_cc_to_resonance(value);
+            //             state.filter.resonance = resonance;
+            //         }
+            //         _ => {}
+            //     }
+            // }
+            _ => {}
+        }
     }
 }
