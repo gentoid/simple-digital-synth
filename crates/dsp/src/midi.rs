@@ -8,7 +8,7 @@ pub type MidiRxSender = channel::Sender<'static, u8, MIDI_RX_CAPACITY>;
 pub type MidiRxReceiver = channel::Receiver<'static, u8, MIDI_RX_CAPACITY>;
 
 pub fn enqueue_midi_processing(
-    midi_rx: &mut serial::Rx<pac::USART3>,
+    midi_rx: &mut serial::Rx<pac::USART2>,
     midi_rx_send: &mut MidiRxSender,
 ) {
     match midi_rx.read() {

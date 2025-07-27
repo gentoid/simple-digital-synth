@@ -33,7 +33,7 @@ mod app {
     #[local]
     struct Local {
         // sample_timer: pac::TIM2,
-        midi_rx: serial::Rx<pac::USART3>,
+        midi_rx: serial::Rx<pac::USART2>,
         midi_parser: MidiParser,
         midi_rx_send: dsp::midi::MidiRxSender,
         // lcd: HD44780<i2c::I2c<pac::I2C1>, cortex_m::delay::Delay>,
@@ -76,13 +76,13 @@ mod app {
         // let (sample_timer, _) = timer.free();
 
         // MIDI
-        let _tx = gpiod.pd8.into_alternate::<7>();
-        let _rx = gpiod.pd9.into_alternate::<7>();
+        let _tx = gpiod.pd5.into_alternate::<7>();
+        let _rx = gpiod.pd6.into_alternate::<7>();
 
-        let serial = serial::Serial::usart3(
-            dp.USART3,
+        let serial = serial::Serial::usart2(
+            dp.USART2,
             serial::config::Config::default().baudrate(31_250.bps()),
-            ccdr.peripheral.USART3,
+            ccdr.peripheral.USART2,
             &ccdr.clocks,
             false,
         )
@@ -186,7 +186,7 @@ mod app {
     //     // audio_buffer.push(sample);
     // }
 
-    #[task(binds = USART3, priority = 8, local = [midi_rx, midi_rx_send])]
+    #[task(binds = USART2, priority = 8, local = [midi_rx, midi_rx_send])]
     fn midi_rx(cx: midi_rx::Context) {
         dsp::midi::enqueue_midi_processing(cx.local.midi_rx, cx.local.midi_rx_send);
     }
