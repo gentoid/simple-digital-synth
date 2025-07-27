@@ -163,6 +163,7 @@ dependencies = [
  "cortex-m-rt",
  "defmt 1.0.1",
  "defmt-brtt",
+ "embedded-dma",
  "embedded-hal 0.2.7",
  "heapless",
  "libm",

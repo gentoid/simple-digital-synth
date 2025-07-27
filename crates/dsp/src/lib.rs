@@ -9,6 +9,7 @@ use panic_halt as _;
 use stm32h7xx_hal as _; // memory layout
 
 pub mod adsr;
+pub mod audio;
 pub mod consts;
 pub mod encoder;
 pub mod filter;

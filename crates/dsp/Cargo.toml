@@ -24,6 +24,8 @@ midi_parser = { path = "../midi_parser" }
 # i2c-character-display = { version = "0.5.0", features = ["defmt"] }
 # hd44780-driver = { git = "https://github.com/JohnDoneth/hd44780-driver", rev = "9009f2c" }
 embedded-hal = "0.2"
+
+embedded-dma = "0.2.0"
 # embedded-hal-compat = "0.13.0"
 
 [profile.dev]
