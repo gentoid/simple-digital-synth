@@ -113,6 +113,7 @@
             "runToEntryPoint": "main",
             "servertype": "openocd",
             "device": "STM32H755ZIT6",
+            "preLaunchTask": "build-m7 (debug)",
             "configFiles": [
                 "interface/stlink.cfg",
                 // "./openocd.cfg",
@@ -180,8 +181,8 @@
                 "interface/stlink.cfg",
                 "target/stm32h7x.cfg"
             ],
-            "svdFile": "./stm32/STM32H755.svd",
-            "preLaunchTask": "build-all-cores (release)"
+            "svdFile": "./stm32/STM32H755_CM7.svd",
+            "preLaunchTask": "build-m7 (release)"
         }
     ]
 }
