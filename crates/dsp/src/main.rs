@@ -14,15 +14,7 @@ mod app {
     };
     use midi_parser::parser::{MidiChannel, MidiParser};
     use rtic_sync::{channel::ReceiveError, make_channel};
-    use stm32h7xx_hal::{
-        dma,
-        // timer::{Event, Timer},
-        gpio,
-        pac,
-        prelude::*,
-        sai,
-        serial,
-    };
+    use stm32h7xx_hal::{dma, gpio, pac, prelude::*, rcc, sai, serial};
 
     #[shared]
     struct Shared {
@@ -55,25 +47,17 @@ mod app {
         let dp = cx.device;
 
         let pwr = dp.PWR.constrain();
-        let pwrcfg = pwr.freeze();
+        let pwrcfg = pwr.smps().freeze();
 
         let rcc = dp.RCC.constrain();
-        let ccdr = rcc.sys_ck(400u32.MHz()).freeze(pwrcfg, &dp.SYSCFG);
+        let ccdr = rcc
+            .sys_ck(400.MHz())
+            .per_ck(100.MHz())
+            .pll3_p_ck(96.MHz())
+            .freeze(pwrcfg, &dp.SYSCFG);
 
-        // let delay = cortex_m::delay::Delay::new(cx.core.SYST, ccdr.clocks.sys_ck().raw());
-
-        // let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
         let gpiod = dp.GPIOD.split(ccdr.peripheral.GPIOD);
         let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
-
-        // Sample timer
-        // let mut timer = Timer::tim2(dp.TIM2, ccdr.peripheral.TIM2, &ccdr.clocks);
-
-        let sample_rate = 48u32.kHz();
-        // timer.start(sample_rate);
-        // timer.listen(Event::TimeOut);
-
-        // let (sample_timer, _) = timer.free();
 
         // MIDI
         let _tx = gpiod.pd5.into_alternate::<7>();
@@ -116,13 +100,18 @@ mod app {
         let fs = gpioe.pe4.into_alternate::<6>(); // WS
         let sd = gpioe.pe6.into_alternate::<6>(); // SD
         let sd2: Option<gpio::PE3<gpio::Alternate<6>>> = None; // SD2
+        let sai_prec = ccdr
+            .peripheral
+            .SAI1
+            .kernel_clk_mux(rcc::rec::Sai1ClkSel::Pll3P);
+        let sample_rate = 48u32.kHz();
 
         let mut sai = sai::Sai::i2s_sai1_ch_a(
             dp.SAI1,
             (mclk, sck, fs, sd, sd2),
             sample_rate,
             sai::I2SDataSize::BITS_16,
-            ccdr.peripheral.SAI1,
+            sai_prec,
             &ccdr.clocks,
             sai::I2sUsers::new(sai::I2SChanConfig::new(sai::I2SDir::Tx)),
         );
@@ -155,7 +144,6 @@ mod app {
                 audio_state: AudioState::new(),
             },
             Local {
-                // sample_timer,
                 midi_rx: rx,
                 midi_parser: MidiParser::new(MidiChannel::Ch1),
                 midi_rx_send,
@@ -177,14 +165,6 @@ mod app {
             continue;
         }
     }
-
-    // #[task(binds = TIM2, priority = 9, local = [sample_timer], shared = [state])]
-    // fn generator(mut cx: generator::Context) {
-    //     cx.local.sample_timer.sr.modify(|_, w| w.uif().clear_bit());
-
-    //     let _sample = cx.shared.state.lock(|state| state.next_sample());
-    //     // audio_buffer.push(sample);
-    // }
 
     #[task(binds = USART2, priority = 8, local = [midi_rx, midi_rx_send])]
     fn midi_rx(cx: midi_rx::Context) {
